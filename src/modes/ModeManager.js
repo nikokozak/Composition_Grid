@@ -1,3 +1,5 @@
+import { state } from '../state/store.js';
+
 export const MODES = {
   ARRANGE: 'arrange',
   // We'll add more modes later
@@ -10,6 +12,7 @@ export class ModeManager {
     this.lastPlayToggleTime = 0;
     this.currentBeat = 0;
     this.tempo = 120; // BPM
+    this.lastTriggeredBeat = -1; // Track last beat where we triggered samples
   }
 
   update() {
@@ -22,10 +25,33 @@ export class ModeManager {
       if (Math.floor(newBeat) >= this.grid.numCols) {
         this.lastPlayToggleTime = millis();
         this.currentBeat = 0;
+        this.lastTriggeredBeat = -1;
       } else {
         this.currentBeat = newBeat;
+        
+        // Check if we've moved to a new beat
+        const currentBeatIndex = Math.floor(this.currentBeat);
+        if (currentBeatIndex !== this.lastTriggeredBeat) {
+          this.triggerSamplesAtBeat(currentBeatIndex);
+          this.lastTriggeredBeat = currentBeatIndex;
+        }
       }
     }
+  }
+
+  triggerSamplesAtBeat(beatIndex) {
+    // Get all squares in the current column
+    const squaresInColumn = state.staticSquares.filter(square => 
+      square.col === beatIndex
+    );
+
+    // Trigger samples for each square
+    squaresInColumn.forEach(square => {
+      const sampleName = state.sampleManager.getSampleForKey(square.key);
+      if (sampleName) {
+        state.sampleManager.playSample(sampleName);
+      }
+    });
   }
 
   togglePlayback() {
@@ -37,6 +63,7 @@ export class ModeManager {
     
     if (!this.isPlaying) {
       this.currentBeat = 0;
+      this.lastTriggeredBeat = -1;
     }
   }
 

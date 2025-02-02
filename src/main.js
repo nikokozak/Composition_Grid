@@ -124,6 +124,7 @@ function drawPreviewVertices() {
 
 function drawSampleNames() {
   const sampleNames = state.sampleManager.getSampleNames();
+  const keyMappings = state.sampleManager.getKeyMappings();
   const spacing = width / (sampleNames.length + 1);
   
   textAlign(CENTER, CENTER);
@@ -134,7 +135,12 @@ function drawSampleNames() {
   sampleNames.forEach((name, i) => {
     const x = spacing * (i + 1);
     const y = 30;
-    text(name, x, y);
+    
+    // Find the key for this sample
+    const key = Object.entries(keyMappings).find(([k, n]) => n === name)?.[0];
+    const displayText = key ? `${name} [${key}]` : name;
+    
+    text(displayText, x, y);
   });
 }
 
