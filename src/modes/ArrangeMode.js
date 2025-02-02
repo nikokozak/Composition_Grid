@@ -23,21 +23,27 @@ export class ArrangeMode extends BaseMode {
 
     // Tempo controls
     if (key === ',') {
-      state.modeManager.setTempo(state.modeManager.tempo - 5);
+      const newTempo = state.timeManager.transport.bpm.value - 5;
+      state.timeManager.setTempo(newTempo);
       return true;
     }
     if (key === '.') {
-      state.modeManager.setTempo(state.modeManager.tempo + 5);
+      const newTempo = state.timeManager.transport.bpm.value + 5;
+      state.timeManager.setTempo(newTempo);
       return true;
     }
 
     // Time signature controls
     if (key === '[') {
-      state.modeManager.halveTimeSignature();
+      const currentValue = state.timeManager.transport.timeSignature;
+      const newValue = currentValue === 0.25 ? 0.25 : currentValue / 2;
+      state.timeManager.setTimeSignature(newValue);
       return true;
     }
     if (key === ']') {
-      state.modeManager.doubleTimeSignature();
+      const currentValue = state.timeManager.transport.timeSignature;
+      const newValue = currentValue === 2 ? 2 : currentValue * 2;
+      state.timeManager.setTimeSignature(newValue);
       return true;
     }
 
@@ -51,8 +57,10 @@ export class ArrangeMode extends BaseMode {
       1: 'quarter notes',
       2: 'half notes'
     };
-    const timeDesc = noteNames[state.modeManager.timeSignature] || 'unknown';
-    return `${super.getStatusText()} | ${state.modeManager.tempo} BPM | ${timeDesc} | Space to ${state.modeManager.isPlaying ? 'stop' : 'play'} | [/] change timing | ,/. change tempo | t/v=modes`;
+    const currentTempo = Math.round(state.timeManager.transport.bpm.value);
+    const currentTimeSignature = state.timeManager.transport.timeSignature;
+    const timeDesc = noteNames[currentTimeSignature] || 'quarter notes';
+    return `${super.getStatusText()} | ${currentTempo} BPM | ${timeDesc} | Space to ${state.timeManager.transport.state === 'started' ? 'stop' : 'play'} | [/] change timing | ,/. change tempo | t/v=modes`;
   }
 
   handleObjectCreation(key) {

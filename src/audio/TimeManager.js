@@ -4,7 +4,7 @@ export class TimeManager {
   constructor() {
     this.transport = Tone.getTransport();
     this.transport.bpm.value = 120;
-    this.transport.timeSignature = 4;
+    this.transport.timeSignature = 1; // Default to quarter notes
     
     // Schedule column triggers
     this.transport.scheduleRepeat(time => {
@@ -23,11 +23,23 @@ export class TimeManager {
   }
 
   setTempo(bpm) {
-    this.transport.bpm.value = bpm;
+    this.transport.bpm.value = Math.max(20, Math.min(300, bpm)); // Clamp between 20 and 300 BPM
   }
 
-  setTimeSignature(numerator, denominator = 4) {
-    this.transport.timeSignature = [numerator, denominator];
+  setTimeSignature(value) {
+    // Convert our simple value to actual time signature
+    const signatures = {
+      0.25: [1, 16], // 16th notes
+      0.5: [1, 8],   // 8th notes
+      1: [1, 4],     // quarter notes
+      2: [1, 2]      // half notes
+    };
+    
+    if (signatures[value]) {
+      const [numerator, denominator] = signatures[value];
+      this.transport.timeSignature = value;
+      this.transport.setTimeSignature(numerator, denominator);
+    }
   }
 
   triggerCurrentColumn(time) {

@@ -107,24 +107,6 @@ export class ModeManager {
     }
   }
 
-  setTempo(bpm) {
-    state.timeManager.setTempo(bpm);
-  }
-
-  setTimeSignature(value) {
-    // Convert our simple value to actual time signature
-    const signatures = {
-      0.25: [1, 16], // 16th notes
-      0.5: [1, 8],   // 8th notes
-      1: [1, 4],     // quarter notes
-      2: [1, 2]      // half notes
-    };
-    
-    if (signatures[value]) {
-      state.timeManager.setTimeSignature(...signatures[value]);
-    }
-  }
-
   //=============================================================================
   // PRIVATE METHODS
   //=============================================================================

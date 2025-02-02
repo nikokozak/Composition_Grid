@@ -40,30 +40,27 @@ export class TrimMode extends BaseMode {
   }
 
   handleKeyPress(key) {
+    // If it's a valid sample key
     if (ACCEPTED_KEYS.includes(key)) {
-      this.selectedSampleKey = key;
-      return true;
+      if (!this.selectedSampleKey) {
+        // No sample selected yet - select this one
+        this.selectedSampleKey = key;
+        return true;
+      } else if (key === this.selectedSampleKey) {
+        // Same key as selected sample - create trim block
+        return this.createTrimBlock();
+      } else {
+        // Different key - switch to that sample
+        this.selectedSampleKey = key;
+        return true;
+      }
     }
     return false;
   }
 
   handleObjectCreation(key) {
-    if (key !== 't' || !this.selectedSampleKey) return false;
-
-    const { col, row } = state.cursor;
-    if (isPositionOccupied(col, row)) return false;
-
-    state.staticSquares.push(
-      new StaticSquare(
-        state.grid, 
-        col, 
-        row, 
-        't', 
-        this.name,
-        this.selectedSampleKey
-      )
-    );
-    return true;
+    // We handle all creation through handleKeyPress now
+    return false;
   }
 
   handleObjectDeletion() {
@@ -208,5 +205,25 @@ export class TrimMode extends BaseMode {
     } else {
       state.sampleManager.clearTrimPositions(sampleName);
     }
+  }
+
+  createTrimBlock() {
+    const { col, row } = state.cursor;
+    if (isPositionOccupied(col, row)) return false;
+
+    state.staticSquares.push(
+      new StaticSquare(
+        state.grid, 
+        col, 
+        row, 
+        't', 
+        this.name,
+        this.selectedSampleKey
+      )
+    );
+
+    // Update trim positions
+    this.updateTrimPositions();
+    return true;
   }
 } 
