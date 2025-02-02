@@ -12,12 +12,13 @@ export class ModeManager {
     this.lastPlayToggleTime = 0;
     this.currentBeat = 0;
     this.tempo = 120; // BPM
+    this.timeSignature = 1; // 1 = quarter notes, 0.5 = eighth notes, 2 = half notes
     this.lastTriggeredBeat = -1; // Track last beat where we triggered samples
   }
 
   update() {
     if (this.isPlaying) {
-      const beatsPerSecond = this.tempo / 60;
+      const beatsPerSecond = (this.tempo / 60) * this.timeSignature;
       const deltaTime = (millis() - this.lastPlayToggleTime) / 1000;
       const newBeat = deltaTime * beatsPerSecond;
       
@@ -36,6 +37,43 @@ export class ModeManager {
           this.lastTriggeredBeat = currentBeatIndex;
         }
       }
+    }
+  }
+
+  setTempo(newTempo) {
+    // Clamp tempo between reasonable values
+    this.tempo = Math.max(30, Math.min(300, newTempo));
+  }
+
+  setTimeSignature(value) {
+    // Common time signatures: 0.25 = 16th notes, 0.5 = 8th notes, 1 = quarter notes, 2 = half notes
+    const validValues = [0.25, 0.5, 1, 2];
+    if (validValues.includes(value)) {
+      this.timeSignature = value;
+    }
+  }
+
+  // Convenience methods for quick tempo changes
+  increaseTempo() {
+    this.setTempo(this.tempo + 5);
+  }
+
+  decreaseTempo() {
+    this.setTempo(this.tempo - 5);
+  }
+
+  // Convenience methods for time signature changes
+  doubleTimeSignature() {
+    const currentIndex = [0.25, 0.5, 1, 2].indexOf(this.timeSignature);
+    if (currentIndex < 3) {
+      this.setTimeSignature([0.25, 0.5, 1, 2][currentIndex + 1]);
+    }
+  }
+
+  halveTimeSignature() {
+    const currentIndex = [0.25, 0.5, 1, 2].indexOf(this.timeSignature);
+    if (currentIndex > 0) {
+      this.setTimeSignature([0.25, 0.5, 1, 2][currentIndex - 1]);
     }
   }
 
@@ -71,12 +109,20 @@ export class ModeManager {
     // Store grid reference for update calculations
     this.grid = grid;
 
-    // Draw mode indicator
+    // Draw mode indicator and tempo
     textAlign(LEFT, BOTTOM);
     textSize(14);
     fill(0);
     noStroke();
-    text(`Mode: ${this.currentMode}`, 20, height - 20);
+    
+    const timeNames = {
+      0.25: '16th',
+      0.5: '8th',
+      1: '1/4',
+      2: '1/2'
+    };
+    
+    text(`Mode: ${this.currentMode} | BPM: ${this.tempo} | Note: ${timeNames[this.timeSignature]}`, 20, height - 20);
 
     // Draw timing bar in arrange mode
     if (this.currentMode === MODES.ARRANGE) {
@@ -104,6 +150,14 @@ export class ModeManager {
   handleKeyPress(key) {
     if (key === ' ') {
       this.togglePlayback();
+    } else if (key === '[') {
+      this.decreaseTempo();
+    } else if (key === ']') {
+      this.increaseTempo();
+    } else if (key === '.') {
+      this.doubleTimeSignature();
+    } else if (key === ',') {
+      this.halveTimeSignature();
     }
     // We'll add more key handlers for other modes later
   }
