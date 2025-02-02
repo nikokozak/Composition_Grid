@@ -54,10 +54,15 @@ export class SampleManager {
     const player = this.samples.get(name);
     if (!player) return;
 
+    // Stop the player before starting again to handle rapid retriggering
+    player.stop();
+
+    // Add a tiny delay to ensure the stop has taken effect
+    const startDelay = 0.01;  // 10ms delay
     const trimPos = this.trimPositions.get(name);
     if (!trimPos) {
       // No trim positions set, play full sample
-      player.start();
+      player.start("+0.01");  // Schedule start after the delay
       return;
     }
 
@@ -71,7 +76,7 @@ export class SampleManager {
       (trimPos.end * samplesPerColumn) / buffer.sampleRate : 
       buffer.duration;
 
-    player.start(undefined, startTime, endTime - startTime);
+    player.start("+0.01", startTime, endTime - startTime);  // Schedule start after the delay
   }
 
   // Get the sample name associated with a key

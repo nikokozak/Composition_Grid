@@ -8,6 +8,7 @@ import { getPreviewPathPoints } from './utils/pathfinding.js';
 import { hasPathOverlap } from './utils/overlap.js';
 import { SampleManager } from './audio/SampleManager.js';
 import { ModeManager, MODES } from './modes/ModeManager.js';
+import { UIManager } from './ui/UIManager.js';
 
 //=============================================================================
 // SETUP AND MAIN LOOP
@@ -19,6 +20,7 @@ async function setup() {
   state.cursor = new Cursor(state.grid);
   state.sampleManager = new SampleManager();
   state.modeManager = new ModeManager();
+  state.uiManager = new UIManager();
   await state.sampleManager.loadSamples();
   
   setupGridControls();
@@ -43,8 +45,17 @@ function setupGridControls() {
 function draw() {
   background(220);
   handleCursorMovement();
-  state.modeManager.update();
-  drawScene();
+  
+  // Calculate deltaTime in seconds
+  const deltaTime = (millis() - state.lastFrameTime) / 1000;
+  state.modeManager.update(deltaTime);
+  state.lastFrameTime = millis();
+  
+  // Draw scene
+  state.grid.draw();
+  state.modeManager.draw(state.grid);
+  state.uiManager.draw();
+  state.cursor.draw();
 }
 
 //=============================================================================
@@ -348,59 +359,17 @@ function handleDeletion() {
 //=============================================================================
 
 function keyPressed() {
-  // Mode switching
-  if (key === 't' && state.modeManager.currentMode === MODES.ARRANGE) {
-    state.modeManager.switchMode(MODES.TRIM);
-    return;
-  } else if (key === 'q' && state.modeManager.currentMode === MODES.TRIM) {
-    // Clear selected sample when exiting trim mode
-    state.modeManager.selectedSampleKey = null;
-    state.modeManager.switchMode(MODES.ARRANGE);
-    return;
-  }
-
   // Handle deletion in any mode
   if (key === 'x') {
-    handleDeletion();
+    state.modeManager.handleObjectDeletion();
     return;
   }
 
-  // Mode-specific key handling
-  if (state.modeManager.currentMode === MODES.ARRANGE) {
-    if (key === ' ') {
-      state.modeManager.togglePlayback();
-    } else if (ACCEPTED_KEYS.includes(key)) {
-      handleSquareCreation(key);
-    } else if (key === 'c') {
-      handleConnectionKey();
-    } else if (key === 'p') {
-      handleVertexKey();
-    }
-  } else if (state.modeManager.currentMode === MODES.TRIM) {
-    if (ACCEPTED_KEYS.includes(key)) {
-      // Select sample in trim mode
-      state.modeManager.selectedSampleKey = key;
-    } else if (key === 't' && state.modeManager.selectedSampleKey) {
-      handleSquareCreation(key);
-    }
-  }
-}
+  // Handle mode-specific key press
+  if (state.modeManager.handleKeyPress(key)) return;
 
-function handleConnectionKey() {
-  const squareAtCursor = getSquareAt(state.cursor.col, state.cursor.row);
-  
-  if (!state.connectMode && squareAtCursor) {
-    handleConnectionStart(squareAtCursor);
-  } else if (state.connectMode) {
-    handleConnectionComplete(squareAtCursor);
-    resetConnectionMode();
-  }
-}
-
-function handleVertexKey() {
-  if (state.connectMode) {
-    handleVertexPlacement(state.cursor.col, state.cursor.row);
-  }
+  // Handle object creation
+  state.modeManager.handleObjectCreation(key);
 }
 
 //=============================================================================

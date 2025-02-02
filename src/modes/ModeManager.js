@@ -1,5 +1,9 @@
 import { state } from '../state/store.js';
 import { StaticSquare } from '../objects/StaticSquare.js';
+import { ArrangeMode } from './ArrangeMode.js';
+import { TrimMode } from './TrimMode.js';
+import { ArrangeRenderer } from '../rendering/ArrangeRenderer.js';
+import { TrimRenderer } from '../rendering/TrimRenderer.js';
 
 export const MODES = {
   ARRANGE: 'arrange',
@@ -8,7 +12,19 @@ export const MODES = {
 
 export class ModeManager {
   constructor() {
-    this.currentMode = MODES.ARRANGE;
+    // Initialize modes
+    this.modes = {
+      arrange: new ArrangeMode(),
+      trim: new TrimMode()
+    };
+
+    // Initialize renderers
+    this.renderers = {
+      arrange: new ArrangeRenderer(),
+      trim: new TrimRenderer()
+    };
+
+    this.currentMode = this.modes.arrange;
     this.isPlaying = false;
     this.lastPlayToggleTime = 0;
     this.currentBeat = 0;
@@ -18,26 +34,65 @@ export class ModeManager {
     this.selectedSampleKey = null; // For trim mode: tracks which sample is being edited
   }
 
-  update() {
-    if (this.isPlaying && this.currentMode === MODES.ARRANGE) {
-      const beatsPerSecond = (this.tempo / 60) * this.timeSignature;
-      const deltaTime = (millis() - this.lastPlayToggleTime) / 1000;
-      const newBeat = deltaTime * beatsPerSecond;
-      
-      if (Math.floor(newBeat) >= this.grid.numCols) {
-        this.lastPlayToggleTime = millis();
-        this.currentBeat = 0;
-        this.lastTriggeredBeat = -1;
-      } else {
-        this.currentBeat = newBeat;
-        
-        const currentBeatIndex = Math.floor(this.currentBeat);
-        if (currentBeatIndex !== this.lastTriggeredBeat) {
-          this.triggerSamplesAtBeat(currentBeatIndex);
-          this.lastTriggeredBeat = currentBeatIndex;
-        }
-      }
+  update(deltaTime) {
+    this.currentMode.update(deltaTime);
+  }
+
+  draw(grid) {
+    // Get the renderer for the current mode
+    const renderer = this.renderers[this.currentMode.name];
+    if (!renderer) {
+      console.error(`No renderer found for mode: ${this.currentMode.name}`);
+      return;
     }
+
+    // Draw using the mode's renderer
+    renderer.draw(grid, state);
+    this.drawStatusText();
+  }
+
+  handleKeyPress(key) {
+    return this.currentMode.handleKeyPress(key);
+  }
+
+  handleObjectCreation(key) {
+    return this.currentMode.handleObjectCreation(key);
+  }
+
+  handleObjectDeletion() {
+    if (!this.currentMode) {
+      console.error('No current mode set');
+      return false;
+    }
+    console.log('ModeManager handling deletion for mode:', this.currentMode.name);
+    const result = this.currentMode.handleObjectDeletion();
+    console.log('Deletion result:', result);
+    return result;
+  }
+
+  switchMode(modeName) {
+    if (!this.modes[modeName]) {
+      console.error(`Invalid mode: ${modeName}`);
+      return;
+    }
+
+    this.currentMode.onExit();
+    this.currentMode = this.modes[modeName];
+    this.currentMode.onEnter();
+  }
+
+  //=============================================================================
+  // PRIVATE METHODS
+  //=============================================================================
+
+  drawStatusText() {
+    push();
+    textAlign(LEFT, BOTTOM);
+    textSize(14);
+    fill(0);
+    noStroke();
+    text(this.currentMode.getStatusText(), 20, height - 20);
+    pop();
   }
 
   setTempo(newTempo) {
@@ -102,20 +157,6 @@ export class ModeManager {
       this.currentBeat = 0;
       this.lastTriggeredBeat = -1;
     }
-  }
-
-  draw(grid) {
-    this.grid = grid;
-
-    // Draw mode-specific elements first
-    if (this.currentMode === MODES.ARRANGE) {
-      this.drawArrangeMode();
-    } else if (this.currentMode === MODES.TRIM) {
-      this.drawTrimMode();
-    }
-
-    // Draw status text
-    this.drawStatusText();
   }
 
   drawArrangeMode() {
@@ -193,26 +234,6 @@ export class ModeManager {
       .forEach(square => square.draw(this.currentMode));
   }
 
-  drawStatusText() {
-    textAlign(LEFT, BOTTOM);
-    textSize(14);
-    fill(0);
-    noStroke();
-    
-    let statusText = `Mode: ${this.currentMode}`;
-    
-    if (this.currentMode === MODES.ARRANGE) {
-      statusText += ` | BPM: ${this.tempo}`;
-    } else if (this.currentMode === MODES.TRIM) {
-      const sampleName = this.selectedSampleKey ? 
-        state.sampleManager.getSampleForKey(this.selectedSampleKey) : 
-        'No sample selected';
-      statusText += ` | Sample: ${sampleName}`;
-    }
-    
-    text(statusText, 20, height - 20);
-  }
-
   drawTimingBar(grid) {
     // Calculate x position based on current beat
     const beatIndex = Math.floor(this.currentBeat);
@@ -286,13 +307,5 @@ export class ModeManager {
     endShape(CLOSE); // CLOSE parameter connects end to start
 
     pop();
-  }
-
-  switchMode(newMode) {
-    this.currentMode = newMode;
-    this.selectedSampleKey = null;
-    if (newMode === MODES.ARRANGE) {
-      this.isPlaying = false;
-    }
   }
 } 
