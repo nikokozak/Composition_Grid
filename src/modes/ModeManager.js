@@ -114,7 +114,7 @@ export class ModeManager {
       this.drawTrimMode();
     }
 
-    // Draw status text last
+    // Draw status text
     this.drawStatusText();
   }
 
@@ -136,19 +136,22 @@ export class ModeManager {
   }
 
   drawTrimMode() {
-    // Draw waveform if sample is selected
+    // 1. Draw waveform first (if sample is selected)
     if (this.selectedSampleKey) {
       this.drawWaveform(this.grid);
     }
 
-    // Draw trim mode squares
-    state.staticSquares
-      .filter(square => square.mode === MODES.TRIM)
-      .forEach(square => square.draw(this.currentMode));
+    // 2. Draw the grid on top of waveform
+    this.grid.draw();
 
-    // Draw other mode squares with reduced opacity
+    // 3. Draw other mode squares with reduced opacity
     state.staticSquares
       .filter(square => square.mode !== MODES.TRIM)
+      .forEach(square => square.draw(this.currentMode));
+
+    // 4. Draw trim mode squares last (on top)
+    state.staticSquares
+      .filter(square => square.mode === MODES.TRIM)
       .forEach(square => square.draw(this.currentMode));
   }
 
@@ -198,33 +201,52 @@ export class ModeManager {
 
     // Draw waveform behind grid
     push();
-    noFill();
-    stroke(200, 200, 255, 128);
+    fill(200, 200, 255, 128); // Light blue fill with low opacity
+    stroke(200, 200, 255, 200); // Slightly stronger stroke
     strokeWeight(1);
 
     const channelData = buffer.getChannelData(0); // Get first channel
     const samplesPerColumn = Math.floor(channelData.length / grid.numCols);
+    const centerY = grid.offsetY + ((grid.numRows - 1) * grid.cellSize / 2);
+    const maxHeight = grid.cellSize * (grid.numRows - 1) / 2;
+
+    // Draw as a single closed shape
+    beginShape();
     
-    for (let col = 0; col < grid.numCols - 1; col++) {
-      const x1 = grid.offsetX + (col * grid.cellSize);
-      const x2 = grid.offsetX + ((col + 1) * grid.cellSize);
+    // Draw top half (left to right)
+    for (let col = 0; col < grid.numCols; col++) {
+      const x = grid.offsetX + (col * grid.cellSize);
       
-      // Find max amplitude in this segment
       let maxAmp = 0;
       const startSample = col * samplesPerColumn;
-      const endSample = startSample + samplesPerColumn;
+      const endSample = Math.min(startSample + samplesPerColumn, channelData.length);
       
       for (let i = startSample; i < endSample; i++) {
         maxAmp = Math.max(maxAmp, Math.abs(channelData[i]));
       }
       
-      // Scale amplitude to grid height
-      const amplitude = maxAmp * grid.cellSize * 2;
-      const centerY = grid.offsetY + ((grid.numRows - 1) * grid.cellSize / 2);
-      
-      line(x1, centerY - amplitude, x2, centerY - amplitude);
-      line(x1, centerY + amplitude, x2, centerY + amplitude);
+      const amplitude = maxAmp * maxHeight;
+      vertex(x, centerY - amplitude);
     }
+    
+    // Draw bottom half (right to left)
+    for (let col = grid.numCols - 1; col >= 0; col--) {
+      const x = grid.offsetX + (col * grid.cellSize);
+      
+      let maxAmp = 0;
+      const startSample = col * samplesPerColumn;
+      const endSample = Math.min(startSample + samplesPerColumn, channelData.length);
+      
+      for (let i = startSample; i < endSample; i++) {
+        maxAmp = Math.max(maxAmp, Math.abs(channelData[i]));
+      }
+      
+      const amplitude = maxAmp * maxHeight;
+      vertex(x, centerY + amplitude);
+    }
+    
+    endShape(CLOSE); // CLOSE parameter connects end to start
+
     pop();
   }
 

@@ -17,6 +17,7 @@ export class SampleManager {
 
     // Reset key mappings
     this.keyMap.clear();
+    this.sampleNames = [];
     
     // Randomly assign keys to samples
     const availableKeys = [...this.middleRowKeys];
@@ -63,9 +64,10 @@ export class SampleManager {
     return Object.fromEntries(this.keyMap);
   }
 
-  // Get the audio buffer for a sample
+  // Get the audio buffer for waveform visualization
   getSampleBuffer(name) {
     const player = this.samples.get(name);
-    return player?.buffer;
+    if (!player) return null;
+    return player.buffer;
   }
 } 

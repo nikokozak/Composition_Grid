@@ -75,19 +75,23 @@ function handleCursorMovement() {
 //=============================================================================
 
 function drawScene() {
-  state.grid.draw();
-  state.connections.forEach(conn => conn.draw(state.grid));
+  // Only draw grid in arrange mode (trim mode handles its own grid drawing)
+  if (state.modeManager.currentMode === MODES.ARRANGE) {
+    state.grid.draw();
+  }
   
-  // Pass the current mode to each square's draw method
-  state.staticSquares.forEach(square => square.draw(state.modeManager.currentMode));
+  // Draw connections
+  state.connections.forEach(conn => conn.draw(state.grid));
   
   if (state.connectMode && state.connectSourceSquare) {
     drawConnectionPreview();
   }
   
   drawSampleNames();
-  state.cursor.draw();
   state.modeManager.draw(state.grid);
+  
+  // Draw cursor last so it's always on top
+  state.cursor.draw();
 }
 
 function drawConnectionPreview() {
