@@ -8,6 +8,7 @@ export class SampleManager {
     this.middleRowKeys = ['a','s','d','f','g','h','j','k','l']; // Standard keyboard middle row
     this.trimPositions = new Map(); // Maps sample names to {start, end} grid positions
     this.volumes = new Map(); // Maps keys to volume values in dB
+    this.pitchShifts = new Map(); // Now maps "key:column" to semitones
   }
 
   async loadSamples() {
@@ -47,6 +48,14 @@ export class SampleManager {
   playSampleAtTime(key, time) {
     const player = this.players.get(key);
     if (!player) return;
+
+    // Get the current column from TimeManager
+    const currentColumn = state.timeManager.getCurrentColumn();
+    
+    // Apply pitch shift if it exists for this key and column
+    const pitchShift = this.getPitchShift(key, currentColumn);
+    const rate = Math.pow(2, pitchShift/12);
+    player.playbackRate = rate;
 
     // Apply trim positions if they exist
     const trimPos = this.trimPositions.get(this.getSampleForKey(key));
@@ -120,5 +129,20 @@ export class SampleManager {
 
   getVolume(key) {
     return this.volumes.get(key) ?? 0; // Default to 0 dB
+  }
+
+  setPitchShift(key, semitones, column) {
+    const pitchKey = `${key}:${column}`;
+    this.pitchShifts.set(pitchKey, semitones);
+  }
+
+  getPitchShift(key, column) {
+    const pitchKey = `${key}:${column}`;
+    return this.pitchShifts.get(pitchKey) ?? 0;
+  }
+
+  clearPitchShift(key, column) {
+    const pitchKey = `${key}:${column}`;
+    this.pitchShifts.delete(pitchKey);
   }
 } 

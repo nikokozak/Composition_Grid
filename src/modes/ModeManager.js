@@ -3,14 +3,17 @@ import { StaticSquare } from '../objects/StaticSquare.js';
 import { ArrangeMode } from './ArrangeMode.js';
 import { TrimMode } from './TrimMode.js';
 import { VolumeMode } from './VolumeMode.js';
+import { PitchMode } from './PitchMode.js';
 import { ArrangeRenderer } from '../rendering/ArrangeRenderer.js';
 import { TrimRenderer } from '../rendering/TrimRenderer.js';
 import { VolumeRenderer } from '../rendering/VolumeRenderer.js';
+import { PitchRenderer } from '../rendering/PitchRenderer.js';
 
 export const MODES = {
   ARRANGE: 'arrange',
   TRIM: 'trim',
-  VOLUME: 'volume'
+  VOLUME: 'volume',
+  PITCH: 'pitch'
 };
 
 export class ModeManager {
@@ -19,14 +22,16 @@ export class ModeManager {
     this.modes = {
       arrange: new ArrangeMode(),
       trim: new TrimMode(),
-      volume: new VolumeMode()
+      volume: new VolumeMode(),
+      pitch: new PitchMode()
     };
 
     // Initialize renderers
     this.renderers = {
       arrange: new ArrangeRenderer(),
       trim: new TrimRenderer(),
-      volume: new VolumeRenderer()
+      volume: new VolumeRenderer(),
+      pitch: new PitchRenderer()
     };
 
     this.currentMode = this.modes.arrange;
@@ -62,6 +67,9 @@ export class ModeManager {
         return true;
       case 'v':
         this.switchMode('volume');
+        return true;
+      case 'p':
+        this.switchMode('pitch');
         return true;
     }
 
@@ -117,7 +125,7 @@ export class ModeManager {
     textSize(14);
     fill(0);
     noStroke();
-    text(this.currentMode.getStatusText(), 20, height - 20);
+    text(`${this.currentMode.getStatusText()} | q=arrange t=trim v=volume p=pitch`, 20, height - 20);
     pop();
   }
 } 

@@ -290,6 +290,10 @@ function keyPressed() {
     state.modeManager.switchMode('volume');
     return;
   }
+  if (key === 'p') {
+    state.modeManager.switchMode('pitch');
+    return;
+  }
 
   // Handle deletion in any mode
   if (key === 'x') {
