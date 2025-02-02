@@ -124,6 +124,8 @@ let staticSquares = [];
 const ACCEPTED_KEYS = ['a', 's', 'd', 'f', 'e', 'g'];
 let lastMoveTime = 0;
 const MOVE_DELAY = 150; // Milliseconds between moves
+let connectMode = false;
+let connectSourceSquare = null;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -158,9 +160,41 @@ function draw() {
   // Draw all static squares
   staticSquares.forEach(square => square.draw());
   cursor.draw();
+  
+  // Draw connection preview if in connect mode
+  if (connectMode && connectSourceSquare) {
+    const sourcePos = grid.getPointPosition(connectSourceSquare.col, connectSourceSquare.row);
+    const cursorPos = grid.getPointPosition(cursor.col, cursor.row);
+    stroke(255, 0, 0);
+    strokeWeight(2);
+    line(sourcePos.x, sourcePos.y, cursorPos.x, cursorPos.y);
+  }
 }
 
 function keyPressed() {
+  // Handle connection mode
+  if (key === 'c') {
+    const squareAtCursor = getSquareAt(cursor.col, cursor.row);
+    
+    if (squareAtCursor) {
+      if (!connectMode) {
+        // Start connection
+        connectMode = true;
+        connectSourceSquare = squareAtCursor;
+        console.log('Connection started from:', connectSourceSquare.key);
+      } else {
+        // Complete connection
+        if (squareAtCursor !== connectSourceSquare) {
+          console.log('Connected:', connectSourceSquare.key, 'to', squareAtCursor.key);
+        }
+        // Reset connection mode
+        connectMode = false;
+        connectSourceSquare = null;
+      }
+    }
+    return;
+  }
+  
   // Check if the pressed key is in the accepted keys list
   if (ACCEPTED_KEYS.includes(key)) {
     // Check if position is not occupied
@@ -175,11 +209,20 @@ function keyPressed() {
     staticSquares = staticSquares.filter(square => 
       !(square.col === cursor.col && square.row === cursor.row)
     );
+    // Reset connection mode if active
+    connectMode = false;
+    connectSourceSquare = null;
   }
 }
 
 function isPositionOccupied(col, row) {
   return staticSquares.some(square => 
+    square.col === col && square.row === row
+  );
+}
+
+function getSquareAt(col, row) {
+  return staticSquares.find(square => 
     square.col === col && square.row === row
   );
 }
