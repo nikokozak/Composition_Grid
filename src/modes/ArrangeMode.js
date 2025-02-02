@@ -18,37 +18,30 @@ export class ArrangeMode extends BaseMode {
     // Space bar toggles playback
     if (key === ' ') {
       state.modeManager.togglePlayback();
-      return;
-    }
-
-    // Switch to trim mode
-    if (key === 't') {
-      state.modeManager.switchMode('trim');
       return true;
     }
 
     // Tempo controls
     if (key === ',') {
       state.modeManager.setTempo(state.modeManager.tempo - 5);
-      return;
+      return true;
     }
     if (key === '.') {
       state.modeManager.setTempo(state.modeManager.tempo + 5);
-      return;
+      return true;
     }
 
     // Time signature controls
     if (key === '[') {
       state.modeManager.halveTimeSignature();
-      return;
+      return true;
     }
     if (key === ']') {
       state.modeManager.doubleTimeSignature();
-      return;
+      return true;
     }
 
-    // Handle other keys normally
-    super.handleKeyPress(key);
+    return false;
   }
 
   getStatusText() {
@@ -59,7 +52,7 @@ export class ArrangeMode extends BaseMode {
       2: 'half notes'
     };
     const timeDesc = noteNames[state.modeManager.timeSignature] || 'unknown';
-    return `Arrange Mode | ${state.modeManager.tempo} BPM | ${timeDesc} | Space to ${state.modeManager.isPlaying ? 'stop' : 'play'} | [/] change timing | ,/. change tempo`;
+    return `${super.getStatusText()} | ${state.modeManager.tempo} BPM | ${timeDesc} | Space to ${state.modeManager.isPlaying ? 'stop' : 'play'} | [/] change timing | ,/. change tempo | t/v=modes`;
   }
 
   handleObjectCreation(key) {

@@ -7,6 +7,7 @@ export class SampleManager {
     this.keyMap = new Map(); // Maps keys to sample names
     this.middleRowKeys = ['a','s','d','f','g','h','j','k','l']; // Standard keyboard middle row
     this.trimPositions = new Map(); // Maps sample names to {start, end} grid positions
+    this.volumes = new Map(); // Maps keys to volume values in dB
   }
 
   async loadSamples() {
@@ -105,5 +106,19 @@ export class SampleManager {
   // Get trim positions for a sample
   getTrimPositions(name) {
     return this.trimPositions.get(name);
+  }
+
+  setVolume(key, dbValue) {
+    this.volumes.set(key, dbValue);
+    const player = this.players.get(key);
+    if (player) {
+      // Convert dB to linear gain (0 dB = 1.0)
+      const gain = dbValue === -Infinity ? 0 : Math.pow(10, dbValue / 20);
+      player.volume.value = dbValue;
+    }
+  }
+
+  getVolume(key) {
+    return this.volumes.get(key) ?? 0; // Default to 0 dB
   }
 } 

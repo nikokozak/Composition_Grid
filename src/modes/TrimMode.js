@@ -40,10 +40,7 @@ export class TrimMode extends BaseMode {
   }
 
   handleKeyPress(key) {
-    if (key === 'q') {
-      state.modeManager.switchMode('arrange');
-      return true;
-    } else if (ACCEPTED_KEYS.includes(key)) {
+    if (ACCEPTED_KEYS.includes(key)) {
       this.selectedSampleKey = key;
       return true;
     }
@@ -96,7 +93,7 @@ export class TrimMode extends BaseMode {
     const sampleName = this.selectedSampleKey ? 
       state.sampleManager.getSampleForKey(this.selectedSampleKey) : 
       'No sample selected';
-    return `${super.getStatusText()} | Sample: ${sampleName}`;
+    return `${super.getStatusText()} | Sample: ${sampleName} | q=arrange t/v=modes`;
   }
 
   //=============================================================================

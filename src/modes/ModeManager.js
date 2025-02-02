@@ -2,12 +2,15 @@ import { state } from '../state/store.js';
 import { StaticSquare } from '../objects/StaticSquare.js';
 import { ArrangeMode } from './ArrangeMode.js';
 import { TrimMode } from './TrimMode.js';
+import { VolumeMode } from './VolumeMode.js';
 import { ArrangeRenderer } from '../rendering/ArrangeRenderer.js';
 import { TrimRenderer } from '../rendering/TrimRenderer.js';
+import { VolumeRenderer } from '../rendering/VolumeRenderer.js';
 
 export const MODES = {
   ARRANGE: 'arrange',
-  TRIM: 'trim'
+  TRIM: 'trim',
+  VOLUME: 'volume'
 };
 
 export class ModeManager {
@@ -15,13 +18,15 @@ export class ModeManager {
     // Initialize modes
     this.modes = {
       arrange: new ArrangeMode(),
-      trim: new TrimMode()
+      trim: new TrimMode(),
+      volume: new VolumeMode()
     };
 
     // Initialize renderers
     this.renderers = {
       arrange: new ArrangeRenderer(),
-      trim: new TrimRenderer()
+      trim: new TrimRenderer(),
+      volume: new VolumeRenderer()
     };
 
     this.currentMode = this.modes.arrange;
@@ -47,6 +52,20 @@ export class ModeManager {
   }
 
   handleKeyPress(key) {
+    // Handle mode switching
+    switch(key) {
+      case 'q':
+        this.switchMode('arrange');
+        return true;
+      case 't':
+        this.switchMode('trim');
+        return true;
+      case 'v':
+        this.switchMode('volume');
+        return true;
+    }
+
+    // If not a mode switch, let the current mode handle it
     return this.currentMode.handleKeyPress(key);
   }
 

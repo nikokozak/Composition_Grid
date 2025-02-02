@@ -285,6 +285,12 @@ function handleDeletion() {
 //=============================================================================
 
 function keyPressed() {
+  // Handle mode switching
+  if (key === 'v') {
+    state.modeManager.switchMode('volume');
+    return;
+  }
+
   // Handle deletion in any mode
   if (key === 'x') {
     state.modeManager.handleObjectDeletion();
