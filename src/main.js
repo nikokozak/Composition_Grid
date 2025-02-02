@@ -6,15 +6,18 @@ import { ACCEPTED_KEYS, MOVE_DELAY } from './constants.js';
 import { state, getSquareAt, isPositionOccupied } from './state/store.js';
 import { getPreviewPathPoints } from './utils/pathfinding.js';
 import { hasPathOverlap } from './utils/overlap.js';
+import { SampleManager } from './audio/SampleManager.js';
 
 //=============================================================================
 // SETUP AND MAIN LOOP
 //=============================================================================
 
-function setup() {
+async function setup() {
   createCanvas(windowWidth, windowHeight);
   state.grid = new Grid();
   state.cursor = new Cursor(state.grid);
+  state.sampleManager = new SampleManager();
+  await state.sampleManager.loadSamples();
 }
 
 function draw() {
@@ -59,6 +62,7 @@ function drawScene() {
     drawConnectionPreview();
   }
   
+  drawSampleNames();
   state.cursor.draw();
 }
 
@@ -93,6 +97,22 @@ function drawPreviewVertices() {
   state.connectVertices.forEach(v => {
     const pos = state.grid.getPointPosition(v.x, v.y);
     circle(pos.x, pos.y, 8);
+  });
+}
+
+function drawSampleNames() {
+  const sampleNames = state.sampleManager.getSampleNames();
+  const spacing = width / (sampleNames.length + 1);
+  
+  textAlign(CENTER, CENTER);
+  textSize(14);
+  fill(0);
+  noStroke();
+  
+  sampleNames.forEach((name, i) => {
+    const x = spacing * (i + 1);
+    const y = 30;
+    text(name, x, y);
   });
 }
 
