@@ -7,6 +7,7 @@ import { state, getSquareAt, isPositionOccupied } from './state/store.js';
 import { getPreviewPathPoints } from './utils/pathfinding.js';
 import { hasPathOverlap } from './utils/overlap.js';
 import { SampleManager } from './audio/SampleManager.js';
+import { ModeManager } from './modes/ModeManager.js';
 
 //=============================================================================
 // SETUP AND MAIN LOOP
@@ -17,6 +18,7 @@ async function setup() {
   state.grid = new Grid();
   state.cursor = new Cursor(state.grid);
   state.sampleManager = new SampleManager();
+  state.modeManager = new ModeManager();
   await state.sampleManager.loadSamples();
   
   setupGridControls();
@@ -41,6 +43,7 @@ function setupGridControls() {
 function draw() {
   background(220);
   handleCursorMovement();
+  state.modeManager.update();
   drawScene();
 }
 
@@ -82,6 +85,7 @@ function drawScene() {
   
   drawSampleNames();
   state.cursor.draw();
+  state.modeManager.draw(state.grid);
 }
 
 function drawConnectionPreview() {
@@ -267,6 +271,9 @@ function handleDeletion() {
 //=============================================================================
 
 function keyPressed() {
+  // Handle mode-specific key events first
+  state.modeManager.handleKeyPress(key);
+  
   const handlers = {
     'c': handleConnectionKey,
     'p': handleVertexKey,
