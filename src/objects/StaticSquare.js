@@ -5,7 +5,8 @@ export class StaticSquare extends GridObject {
   constructor(grid, col, row, key, mode) {
     super(grid, col, row);
     this.key = key;
-    this.mode = mode; // Store which mode this square belongs to
+    this.mode = mode;
+    console.log('Created StaticSquare:', { col, row, key, mode });
   }
   
   draw(currentMode) {
@@ -14,20 +15,21 @@ export class StaticSquare extends GridObject {
     // Set opacity based on whether we're in the same mode (25% opacity for other modes)
     const alpha = this.mode === currentMode ? 255 : 64;
     
-    push(); // Save current drawing state
+    push();
     
+    // Draw square
     fill(0, 150, 255, alpha);
     noStroke();
     rectMode(CENTER);
     square(pos.x, pos.y, CURSOR_SIZE);
     
-    // Draw the key character
+    // Draw key character
     fill(0, alpha);
     textAlign(CENTER, CENTER);
     textSize(16);
     text(this.key, pos.x, pos.y);
     
-    pop(); // Restore previous drawing state
+    pop();
   }
   
   move() { /* Static squares don't move */ }

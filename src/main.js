@@ -77,7 +77,9 @@ function handleCursorMovement() {
 function drawScene() {
   state.grid.draw();
   state.connections.forEach(conn => conn.draw(state.grid));
-  state.staticSquares.forEach(square => square.draw());
+  
+  // Pass the current mode to each square's draw method
+  state.staticSquares.forEach(square => square.draw(state.modeManager.currentMode));
   
   if (state.connectMode && state.connectSourceSquare) {
     drawConnectionPreview();
@@ -248,15 +250,29 @@ function tryAddVertex(col, row) {
 //=============================================================================
 
 function handleSquareCreation(key) {
+  console.log('Creating square:', {
+    mode: state.modeManager.currentMode,
+    key,
+    selectedSample: state.modeManager.selectedSampleKey
+  });
+
   // In trim mode, only allow 't' key to create squares
   if (state.modeManager.currentMode === MODES.TRIM) {
     if (key === 't' && state.modeManager.selectedSampleKey) {
       const { col, row } = state.cursor;
       if (!isPositionOccupied(col, row)) {
+        console.log('Creating trim marker at:', { col, row });
         state.staticSquares.push(
           new StaticSquare(state.grid, col, row, 't', MODES.TRIM)
         );
+      } else {
+        console.log('Position occupied');
       }
+    } else {
+      console.log('Not creating trim marker:', { 
+        isTKey: key === 't', 
+        hasSelectedSample: Boolean(state.modeManager.selectedSampleKey) 
+      });
     }
     return;
   }
@@ -265,6 +281,7 @@ function handleSquareCreation(key) {
   if (state.modeManager.currentMode === MODES.ARRANGE && ACCEPTED_KEYS.includes(key)) {
     const { col, row } = state.cursor;
     if (!isPositionOccupied(col, row)) {
+      console.log('Creating arrange square at:', { col, row, key });
       state.staticSquares.push(
         new StaticSquare(state.grid, col, row, key, MODES.ARRANGE)
       );
@@ -292,22 +309,40 @@ function handleDeletion() {
 //=============================================================================
 
 function keyPressed() {
-  // Handle mode-specific key events first
-  state.modeManager.handleKeyPress(key);
-  
-  const handlers = {
-    'c': handleConnectionKey,
-    'p': handleVertexKey,
-    'x': handleDeletion
-  };
-  
-  const handler = handlers[key];
-  if (handler) {
-    handler();
+  // Mode switching
+  if (key === 't' && state.modeManager.currentMode === MODES.ARRANGE) {
+    state.modeManager.switchMode(MODES.TRIM);
+    return;
+  } else if (key === 'q' && state.modeManager.currentMode === MODES.TRIM) {
+    state.modeManager.switchMode(MODES.ARRANGE);
     return;
   }
-  
-  handleSquareCreation(key);
+
+  // Handle deletion in any mode
+  if (key === 'x') {
+    handleDeletion();
+    return;
+  }
+
+  // Mode-specific key handling
+  if (state.modeManager.currentMode === MODES.ARRANGE) {
+    if (key === ' ') {
+      state.modeManager.togglePlayback();
+    } else if (ACCEPTED_KEYS.includes(key)) {
+      handleSquareCreation(key);
+    } else if (key === 'c') {
+      handleConnectionKey();
+    } else if (key === 'p') {
+      handleVertexKey();
+    }
+  } else if (state.modeManager.currentMode === MODES.TRIM) {
+    if (ACCEPTED_KEYS.includes(key)) {
+      // Select sample in trim mode
+      state.modeManager.selectedSampleKey = key;
+    } else if (key === 't' && state.modeManager.selectedSampleKey) {
+      handleSquareCreation(key);
+    }
+  }
 }
 
 function handleConnectionKey() {

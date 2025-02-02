@@ -228,69 +228,11 @@ export class ModeManager {
     pop();
   }
 
-  handleKeyPress(key) {
-    // Mode switching
-    if (key === 't' && this.currentMode === MODES.ARRANGE) {
-      this.switchMode(MODES.TRIM);
-      return;
-    } else if (key === 'q' && this.currentMode === MODES.TRIM) {
-      this.switchMode(MODES.ARRANGE);
-      return;
-    }
-
-    // Handle current mode keys
-    if (this.currentMode === MODES.ARRANGE) {
-      this.handleArrangeModeKeys(key);
-    } else if (this.currentMode === MODES.TRIM) {
-      this.handleTrimModeKeys(key);
-    }
-  }
-
   switchMode(newMode) {
     this.currentMode = newMode;
     this.selectedSampleKey = null;
     if (newMode === MODES.ARRANGE) {
       this.isPlaying = false;
     }
-  }
-
-  handleArrangeModeKeys(key) {
-    if (key === ' ') {
-      this.isPlaying = !this.isPlaying;
-      this.lastPlayToggleTime = millis();
-      if (!this.isPlaying) {
-        this.currentBeat = 0;
-        this.lastTriggeredBeat = -1;
-      }
-    } else if (state.sampleManager.getKeyMappings()[key]) {
-      const { col, row } = state.cursor;
-      state.staticSquares.push(
-        new StaticSquare(this.grid, col, row, key, MODES.ARRANGE)
-      );
-    } else if (key === 'x') {
-      this.deleteSquareAtCursor();
-    }
-  }
-
-  handleTrimModeKeys(key) {
-    if (state.sampleManager.getKeyMappings()[key]) {
-      this.selectedSampleKey = key;
-    } else if (key === 't' && this.selectedSampleKey) {
-      const { col, row } = state.cursor;
-      state.staticSquares.push(
-        new StaticSquare(this.grid, col, row, 't', MODES.TRIM)
-      );
-    } else if (key === 'x') {
-      this.deleteSquareAtCursor();
-    }
-  }
-
-  deleteSquareAtCursor() {
-    const { col, row } = state.cursor;
-    state.staticSquares = state.staticSquares.filter(square => 
-      !(square.col === col && 
-        square.row === row && 
-        square.mode === this.currentMode)
-    );
   }
 } 
