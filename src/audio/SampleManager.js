@@ -1,5 +1,3 @@
-import * as Tone from 'tone';
-
 export class SampleManager {
   constructor() {
     this.samples = new Map();

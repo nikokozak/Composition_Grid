@@ -13,8 +13,8 @@ export class Cursor extends GridObject {
   }
   
   move(deltaCol, deltaRow) {
-    const newCol = constrain(this.col + deltaCol, 0, this.grid.cols - 1);
-    const newRow = constrain(this.row + deltaRow, 0, this.grid.rows - 1);
+    const newCol = constrain(this.col + deltaCol, 0, this.grid.numCols - 1);
+    const newRow = constrain(this.row + deltaRow, 0, this.grid.numRows - 1);
     this.col = newCol;
     this.row = newRow;
   }

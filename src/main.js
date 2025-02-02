@@ -18,6 +18,24 @@ async function setup() {
   state.cursor = new Cursor(state.grid);
   state.sampleManager = new SampleManager();
   await state.sampleManager.loadSamples();
+  
+  setupGridControls();
+}
+
+function setupGridControls() {
+  const colsInput = document.getElementById('cols');
+  const rowsInput = document.getElementById('rows');
+  
+  const updateGrid = () => {
+    const cols = parseInt(colsInput.value);
+    const rows = parseInt(rowsInput.value);
+    if (!isNaN(cols) && !isNaN(rows)) {
+      state.grid.setDimensions(cols, rows);
+    }
+  };
+  
+  colsInput.addEventListener('change', updateGrid);
+  rowsInput.addEventListener('change', updateGrid);
 }
 
 function draw() {
