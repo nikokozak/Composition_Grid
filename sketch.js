@@ -53,6 +53,28 @@ class Cursor extends GridObject {
   }
 }
 
+class StaticSquare extends GridObject {
+  constructor(grid, col, row, key) {
+    super(grid, col, row);
+    this.key = key;
+  }
+  
+  drawAtPosition(x, y) {
+    fill(0, 150, 255, 150);
+    rectMode(CENTER);
+    square(x, y, CURSOR_SIZE);
+    
+    // Draw the key character
+    fill(0);
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    text(this.key, x, y);
+  }
+  
+  move() { /* Static squares don't move */ }
+}
+
 // Example of object with different movement:
 // class Bouncer extends GridObject {
 //   move(deltaCol, deltaRow) {
@@ -98,6 +120,8 @@ class Grid {
 
 let grid;
 let cursor;
+let staticSquares = [];
+const ACCEPTED_KEYS = ['a', 's', 'd', 'f', 'e', 'g'];
 let lastMoveTime = 0;
 const MOVE_DELAY = 150; // Milliseconds between moves
 
@@ -131,7 +155,33 @@ function draw() {
   }
   
   grid.draw();
+  // Draw all static squares
+  staticSquares.forEach(square => square.draw());
   cursor.draw();
+}
+
+function keyPressed() {
+  // Check if the pressed key is in the accepted keys list
+  if (ACCEPTED_KEYS.includes(key)) {
+    // Check if position is not occupied
+    if (!isPositionOccupied(cursor.col, cursor.row)) {
+      staticSquares.push(new StaticSquare(grid, cursor.col, cursor.row, key));
+    }
+  }
+  
+  // Handle deletion with 'x' key
+  if (key === 'x') {
+    // Find and remove any square at cursor position
+    staticSquares = staticSquares.filter(square => 
+      !(square.col === cursor.col && square.row === cursor.row)
+    );
+  }
+}
+
+function isPositionOccupied(col, row) {
+  return staticSquares.some(square => 
+    square.col === col && square.row === row
+  );
 }
 
 // Add this to handle window resizing
