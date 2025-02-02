@@ -13,12 +13,17 @@ export const state = {
 // Helper functions
 export function getSquareAt(col, row) {
   return state.staticSquares.find(square => 
-    square.col === col && square.row === row
+    square.col === col && 
+    square.row === row && 
+    square.mode === state.modeManager.currentMode
   );
 }
 
 export function isPositionOccupied(col, row) {
+  // Only check for squares in the current mode
   return state.staticSquares.some(square => 
-    square.col === col && square.row === row
+    square.col === col && 
+    square.row === row && 
+    square.mode === state.modeManager.currentMode
   );
 } 

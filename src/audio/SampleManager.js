@@ -62,4 +62,10 @@ export class SampleManager {
   getKeyMappings() {
     return Object.fromEntries(this.keyMap);
   }
+
+  // Get the audio buffer for a sample
+  getSampleBuffer(name) {
+    const player = this.samples.get(name);
+    return player?.buffer;
+  }
 } 

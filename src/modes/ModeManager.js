@@ -1,8 +1,9 @@
 import { state } from '../state/store.js';
+import { StaticSquare } from '../objects/StaticSquare.js';
 
 export const MODES = {
   ARRANGE: 'arrange',
-  // We'll add more modes later
+  TRIM: 'trim'
 };
 
 export class ModeManager {
@@ -14,15 +15,15 @@ export class ModeManager {
     this.tempo = 120; // BPM
     this.timeSignature = 1; // 1 = quarter notes, 0.5 = eighth notes, 2 = half notes
     this.lastTriggeredBeat = -1; // Track last beat where we triggered samples
+    this.selectedSampleKey = null; // For trim mode: tracks which sample is being edited
   }
 
   update() {
-    if (this.isPlaying) {
+    if (this.isPlaying && this.currentMode === MODES.ARRANGE) {
       const beatsPerSecond = (this.tempo / 60) * this.timeSignature;
       const deltaTime = (millis() - this.lastPlayToggleTime) / 1000;
       const newBeat = deltaTime * beatsPerSecond;
       
-      // If we've passed the last column, reset timing to maintain perfect sync
       if (Math.floor(newBeat) >= this.grid.numCols) {
         this.lastPlayToggleTime = millis();
         this.currentBeat = 0;
@@ -30,7 +31,6 @@ export class ModeManager {
       } else {
         this.currentBeat = newBeat;
         
-        // Check if we've moved to a new beat
         const currentBeatIndex = Math.floor(this.currentBeat);
         if (currentBeatIndex !== this.lastTriggeredBeat) {
           this.triggerSamplesAtBeat(currentBeatIndex);
@@ -78,12 +78,11 @@ export class ModeManager {
   }
 
   triggerSamplesAtBeat(beatIndex) {
-    // Get all squares in the current column
+    // Only trigger samples from squares in arrange mode
     const squaresInColumn = state.staticSquares.filter(square => 
-      square.col === beatIndex
+      square.col === beatIndex && square.mode === MODES.ARRANGE
     );
 
-    // Trigger samples for each square
     squaresInColumn.forEach(square => {
       const sampleName = state.sampleManager.getSampleForKey(square.key);
       if (sampleName) {
@@ -106,28 +105,71 @@ export class ModeManager {
   }
 
   draw(grid) {
-    // Store grid reference for update calculations
     this.grid = grid;
 
-    // Draw mode indicator and tempo
+    // Draw mode-specific elements first
+    if (this.currentMode === MODES.ARRANGE) {
+      this.drawArrangeMode();
+    } else if (this.currentMode === MODES.TRIM) {
+      this.drawTrimMode();
+    }
+
+    // Draw status text last
+    this.drawStatusText();
+  }
+
+  drawArrangeMode() {
+    // Draw arrange mode squares
+    state.staticSquares
+      .filter(square => square.mode === MODES.ARRANGE)
+      .forEach(square => square.draw(this.currentMode));
+
+    // Draw timing bar
+    if (this.isPlaying) {
+      this.drawTimingBar(this.grid);
+    }
+
+    // Draw other mode squares with reduced opacity
+    state.staticSquares
+      .filter(square => square.mode !== MODES.ARRANGE)
+      .forEach(square => square.draw(this.currentMode));
+  }
+
+  drawTrimMode() {
+    // Draw waveform if sample is selected
+    if (this.selectedSampleKey) {
+      this.drawWaveform(this.grid);
+    }
+
+    // Draw trim mode squares
+    state.staticSquares
+      .filter(square => square.mode === MODES.TRIM)
+      .forEach(square => square.draw(this.currentMode));
+
+    // Draw other mode squares with reduced opacity
+    state.staticSquares
+      .filter(square => square.mode !== MODES.TRIM)
+      .forEach(square => square.draw(this.currentMode));
+  }
+
+  drawStatusText() {
     textAlign(LEFT, BOTTOM);
     textSize(14);
     fill(0);
     noStroke();
     
-    const timeNames = {
-      0.25: '16th',
-      0.5: '8th',
-      1: '1/4',
-      2: '1/2'
-    };
+    let statusText = `Mode: ${this.currentMode}`;
     
-    text(`Mode: ${this.currentMode} | BPM: ${this.tempo} | Note: ${timeNames[this.timeSignature]}`, 20, height - 20);
-
-    // Draw timing bar in arrange mode
     if (this.currentMode === MODES.ARRANGE) {
-      this.drawTimingBar(grid);
+      statusText += ` | BPM: ${this.tempo}`;
+    } else if (this.currentMode === MODES.TRIM) {
+      const sampleName = this.selectedSampleKey ? 
+        state.sampleManager.getSampleForKey(this.selectedSampleKey) : 
+        'No sample selected';
+      statusText += ` | Sample: ${sampleName}`;
     }
+    
+    text(statusText, 20, height - 20);
   }
 
   drawTimingBar(grid) {
@@ -147,18 +189,108 @@ export class ModeManager {
     text(`Beat: ${beatIndex + 1}`, x, grid.offsetY - 20);
   }
 
-  handleKeyPress(key) {
-    if (key === ' ') {
-      this.togglePlayback();
-    } else if (key === '[') {
-      this.decreaseTempo();
-    } else if (key === ']') {
-      this.increaseTempo();
-    } else if (key === '.') {
-      this.doubleTimeSignature();
-    } else if (key === ',') {
-      this.halveTimeSignature();
+  drawWaveform(grid) {
+    const sampleName = state.sampleManager.getSampleForKey(this.selectedSampleKey);
+    if (!sampleName) return;
+
+    const buffer = state.sampleManager.getSampleBuffer(sampleName);
+    if (!buffer) return;
+
+    // Draw waveform behind grid
+    push();
+    noFill();
+    stroke(200, 200, 255, 128);
+    strokeWeight(1);
+
+    const channelData = buffer.getChannelData(0); // Get first channel
+    const samplesPerColumn = Math.floor(channelData.length / grid.numCols);
+    
+    for (let col = 0; col < grid.numCols - 1; col++) {
+      const x1 = grid.offsetX + (col * grid.cellSize);
+      const x2 = grid.offsetX + ((col + 1) * grid.cellSize);
+      
+      // Find max amplitude in this segment
+      let maxAmp = 0;
+      const startSample = col * samplesPerColumn;
+      const endSample = startSample + samplesPerColumn;
+      
+      for (let i = startSample; i < endSample; i++) {
+        maxAmp = Math.max(maxAmp, Math.abs(channelData[i]));
+      }
+      
+      // Scale amplitude to grid height
+      const amplitude = maxAmp * grid.cellSize * 2;
+      const centerY = grid.offsetY + ((grid.numRows - 1) * grid.cellSize / 2);
+      
+      line(x1, centerY - amplitude, x2, centerY - amplitude);
+      line(x1, centerY + amplitude, x2, centerY + amplitude);
     }
-    // We'll add more key handlers for other modes later
+    pop();
+  }
+
+  handleKeyPress(key) {
+    // Mode switching
+    if (key === 't' && this.currentMode === MODES.ARRANGE) {
+      this.switchMode(MODES.TRIM);
+      return;
+    } else if (key === 'q' && this.currentMode === MODES.TRIM) {
+      this.switchMode(MODES.ARRANGE);
+      return;
+    }
+
+    // Handle current mode keys
+    if (this.currentMode === MODES.ARRANGE) {
+      this.handleArrangeModeKeys(key);
+    } else if (this.currentMode === MODES.TRIM) {
+      this.handleTrimModeKeys(key);
+    }
+  }
+
+  switchMode(newMode) {
+    this.currentMode = newMode;
+    this.selectedSampleKey = null;
+    if (newMode === MODES.ARRANGE) {
+      this.isPlaying = false;
+    }
+  }
+
+  handleArrangeModeKeys(key) {
+    if (key === ' ') {
+      this.isPlaying = !this.isPlaying;
+      this.lastPlayToggleTime = millis();
+      if (!this.isPlaying) {
+        this.currentBeat = 0;
+        this.lastTriggeredBeat = -1;
+      }
+    } else if (state.sampleManager.getKeyMappings()[key]) {
+      const { col, row } = state.cursor;
+      state.staticSquares.push(
+        new StaticSquare(this.grid, col, row, key, MODES.ARRANGE)
+      );
+    } else if (key === 'x') {
+      this.deleteSquareAtCursor();
+    }
+  }
+
+  handleTrimModeKeys(key) {
+    if (state.sampleManager.getKeyMappings()[key]) {
+      this.selectedSampleKey = key;
+    } else if (key === 't' && this.selectedSampleKey) {
+      const { col, row } = state.cursor;
+      state.staticSquares.push(
+        new StaticSquare(this.grid, col, row, 't', MODES.TRIM)
+      );
+    } else if (key === 'x') {
+      this.deleteSquareAtCursor();
+    }
+  }
+
+  deleteSquareAtCursor() {
+    const { col, row } = state.cursor;
+    state.staticSquares = state.staticSquares.filter(square => 
+      !(square.col === col && 
+        square.row === row && 
+        square.mode === this.currentMode)
+    );
   }
 } 

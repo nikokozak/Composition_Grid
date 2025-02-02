@@ -7,7 +7,7 @@ import { state, getSquareAt, isPositionOccupied } from './state/store.js';
 import { getPreviewPathPoints } from './utils/pathfinding.js';
 import { hasPathOverlap } from './utils/overlap.js';
 import { SampleManager } from './audio/SampleManager.js';
-import { ModeManager } from './modes/ModeManager.js';
+import { ModeManager, MODES } from './modes/ModeManager.js';
 
 //=============================================================================
 // SETUP AND MAIN LOOP
@@ -248,27 +248,42 @@ function tryAddVertex(col, row) {
 //=============================================================================
 
 function handleSquareCreation(key) {
-  if (!ACCEPTED_KEYS.includes(key)) return;
-  
-  const { col, row } = state.cursor;
-  if (!isPositionOccupied(col, row)) {
-    state.staticSquares.push(
-      new StaticSquare(state.grid, col, row, key)
-    );
+  // In trim mode, only allow 't' key to create squares
+  if (state.modeManager.currentMode === MODES.TRIM) {
+    if (key === 't' && state.modeManager.selectedSampleKey) {
+      const { col, row } = state.cursor;
+      if (!isPositionOccupied(col, row)) {
+        state.staticSquares.push(
+          new StaticSquare(state.grid, col, row, 't', MODES.TRIM)
+        );
+      }
+    }
+    return;
+  }
+
+  // In arrange mode, only allow sample keys to create squares
+  if (state.modeManager.currentMode === MODES.ARRANGE && ACCEPTED_KEYS.includes(key)) {
+    const { col, row } = state.cursor;
+    if (!isPositionOccupied(col, row)) {
+      state.staticSquares.push(
+        new StaticSquare(state.grid, col, row, key, MODES.ARRANGE)
+      );
+    }
   }
 }
 
 function handleDeletion() {
   const { col, row } = state.cursor;
+  const currentMode = state.modeManager.currentMode;
   
-  state.connections = state.connections.filter(conn => 
-    !conn.containsPoint(col, row)
-  );
-  
+  // Only delete squares from the current mode
   state.staticSquares = state.staticSquares.filter(square => 
-    !(square.col === col && square.row === row)
+    !(square.col === col && 
+      square.row === row && 
+      square.mode === currentMode)
   );
   
+  // Reset connection mode if active
   resetConnectionMode();
 }
 
