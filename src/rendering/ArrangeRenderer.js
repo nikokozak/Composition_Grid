@@ -5,6 +5,10 @@ import { getPreviewPathPoints } from '../utils/pathfinding.js';
 import { hasPathOverlap } from '../utils/overlap.js';
 
 export class ArrangeRenderer extends BaseRenderer {
+  constructor() {
+    super();
+  }
+
   draw(grid, state) {
     // Draw arrange mode squares
     state.staticSquares
@@ -12,9 +16,8 @@ export class ArrangeRenderer extends BaseRenderer {
       .forEach(square => square.draw(MODES.ARRANGE));
 
     // Draw timing bar if playing
-    const arrangeMode = state.modeManager.modes.arrange;
-    if (arrangeMode.isPlaying) {
-      this.drawTimingBar(grid, arrangeMode);
+    if (state.modeManager.isPlaying) {
+      this.drawTimingBar(grid);
     }
 
     // Draw connections
@@ -30,8 +33,8 @@ export class ArrangeRenderer extends BaseRenderer {
   // PRIVATE METHODS
   //=============================================================================
 
-  drawTimingBar(grid, arrangeMode) {
-    const beatIndex = Math.floor(arrangeMode.currentBeat);
+  drawTimingBar(grid) {
+    const beatIndex = Math.floor(state.modeManager.currentBeat);
     const x = grid.offsetX + (beatIndex * grid.cellSize);
     
     push();

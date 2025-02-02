@@ -25,17 +25,43 @@ export class ModeManager {
     };
 
     this.currentMode = this.modes.arrange;
+    
+    // Global playback state (moved from ArrangeMode)
     this.isPlaying = false;
     this.lastPlayToggleTime = 0;
     this.currentBeat = 0;
     this.tempo = 120; // BPM
-    this.timeSignature = 1; // 1 = quarter notes, 0.5 = eighth notes, 2 = half notes
-    this.lastTriggeredBeat = -1; // Track last beat where we triggered samples
+    this.timeSignature = 1; // 1 = quarter notes
+    this.lastTriggeredBeat = -1;
     this.selectedSampleKey = null; // For trim mode: tracks which sample is being edited
   }
 
   update(deltaTime) {
+    // Update current mode
     this.currentMode.update(deltaTime);
+
+    // Handle global playback if active
+    if (this.isPlaying) {
+      this.updatePlayback(deltaTime);
+    }
+  }
+
+  updatePlayback(deltaTime) {
+    const beatsPerSecond = (this.tempo / 60) * this.timeSignature;
+    const newBeat = this.currentBeat + (deltaTime * beatsPerSecond);
+    
+    if (Math.floor(newBeat) >= state.grid.numCols) {
+      this.currentBeat = 0;
+      this.lastTriggeredBeat = -1;
+    } else {
+      this.currentBeat = newBeat;
+      
+      const currentBeatIndex = Math.floor(this.currentBeat);
+      if (currentBeatIndex !== this.lastTriggeredBeat) {
+        this.triggerSamplesAtBeat(currentBeatIndex);
+        this.lastTriggeredBeat = currentBeatIndex;
+      }
+    }
   }
 
   draw(grid) {
@@ -96,28 +122,24 @@ export class ModeManager {
   }
 
   setTempo(newTempo) {
-    // Clamp tempo between reasonable values
     this.tempo = Math.max(30, Math.min(300, newTempo));
+    console.log(`Tempo: ${this.tempo} BPM`);
   }
 
   setTimeSignature(value) {
-    // Common time signatures: 0.25 = 16th notes, 0.5 = 8th notes, 1 = quarter notes, 2 = half notes
     const validValues = [0.25, 0.5, 1, 2];
     if (validValues.includes(value)) {
       this.timeSignature = value;
+      const noteNames = {
+        0.25: '16th notes',
+        0.5: '8th notes',
+        1: 'quarter notes',
+        2: 'half notes'
+      };
+      console.log(`Time signature: ${noteNames[value]}`);
     }
   }
 
-  // Convenience methods for quick tempo changes
-  increaseTempo() {
-    this.setTempo(this.tempo + 5);
-  }
-
-  decreaseTempo() {
-    this.setTempo(this.tempo - 5);
-  }
-
-  // Convenience methods for time signature changes
   doubleTimeSignature() {
     const currentIndex = [0.25, 0.5, 1, 2].indexOf(this.timeSignature);
     if (currentIndex < 3) {
@@ -156,6 +178,12 @@ export class ModeManager {
     if (!this.isPlaying) {
       this.currentBeat = 0;
       this.lastTriggeredBeat = -1;
+    } else {
+      // Reset beat counter when starting playback
+      this.currentBeat = 0;
+      this.lastTriggeredBeat = -1;
+      // Trigger first beat immediately
+      this.triggerSamplesAtBeat(0);
     }
   }
 
@@ -309,3 +337,4 @@ export class ModeManager {
     pop();
   }
 } 
+ 
