@@ -267,7 +267,14 @@ function handleSquareCreation(key) {
       if (!isPositionOccupied(col, row)) {
         console.log('Creating trim marker at:', { col, row });
         state.staticSquares.push(
-          new StaticSquare(state.grid, col, row, 't', MODES.TRIM)
+          new StaticSquare(
+            state.grid, 
+            col, 
+            row, 
+            't', 
+            MODES.TRIM,
+            state.modeManager.selectedSampleKey
+          )
         );
       } else {
         console.log('Position occupied');
@@ -298,6 +305,34 @@ function handleDeletion() {
   const currentMode = state.modeManager.currentMode;
   
   // Only delete squares from the current mode
+  const squaresToDelete = state.staticSquares.filter(square => 
+    square.col === col && 
+    square.row === row && 
+    square.mode === currentMode
+  );
+
+  // If deleting trim markers, update trim positions
+  if (currentMode === MODES.TRIM && squaresToDelete.some(s => s.key === 't')) {
+    const sampleName = state.sampleManager.getSampleForKey(state.modeManager.selectedSampleKey);
+    if (sampleName) {
+      // Remaining trim squares after deletion
+      const remainingTrimSquares = state.staticSquares.filter(square => 
+        square.mode === MODES.TRIM && 
+        square.key === 't' &&
+        !(square.col === col && square.row === row)
+      );
+
+      if (remainingTrimSquares.length > 0) {
+        const sortedSquares = [...remainingTrimSquares].sort((a, b) => a.col - b.col);
+        const startCol = sortedSquares[0].col;
+        const endCol = sortedSquares.length > 1 ? sortedSquares[sortedSquares.length - 1].col : null;
+        state.sampleManager.setTrimPositions(sampleName, startCol, endCol);
+      } else {
+        state.sampleManager.clearTrimPositions(sampleName);
+      }
+    }
+  }
+
   state.staticSquares = state.staticSquares.filter(square => 
     !(square.col === col && 
       square.row === row && 
@@ -318,6 +353,8 @@ function keyPressed() {
     state.modeManager.switchMode(MODES.TRIM);
     return;
   } else if (key === 'q' && state.modeManager.currentMode === MODES.TRIM) {
+    // Clear selected sample when exiting trim mode
+    state.modeManager.selectedSampleKey = null;
     state.modeManager.switchMode(MODES.ARRANGE);
     return;
   }

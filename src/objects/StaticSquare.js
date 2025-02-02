@@ -2,11 +2,12 @@ import { GridObject } from '../core/GridObject.js';
 import { CURSOR_SIZE } from '../constants.js';
 
 export class StaticSquare extends GridObject {
-  constructor(grid, col, row, key, mode) {
+  constructor(grid, col, row, key, mode, sampleKey = null) {
     super(grid, col, row);
     this.key = key;
     this.mode = mode;
-    console.log('Created StaticSquare:', { col, row, key, mode });
+    this.sampleKey = sampleKey;
+    console.log('Created StaticSquare:', { col, row, key, mode, sampleKey });
   }
   
   draw(currentMode) {

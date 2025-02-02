@@ -136,22 +136,60 @@ export class ModeManager {
   }
 
   drawTrimMode() {
-    // 1. Draw waveform first (if sample is selected)
+    // Only draw waveform and trim markers for selected sample
     if (this.selectedSampleKey) {
-      this.drawWaveform(this.grid);
+      const sampleName = state.sampleManager.getSampleForKey(this.selectedSampleKey);
+      if (sampleName) {
+        this.drawWaveform(this.grid);
+        
+        // Draw trim markers for current sample
+        const trimSquares = state.staticSquares.filter(square => 
+          square.mode === MODES.TRIM && 
+          square.key === 't' &&
+          square.sampleKey === this.selectedSampleKey
+        );
+
+        // Sort by column to find start/end positions
+        if (trimSquares.length > 0) {
+          const sortedSquares = [...trimSquares].sort((a, b) => a.col - b.col);
+          const startCol = sortedSquares[0].col;
+          const endCol = sortedSquares.length > 1 ? sortedSquares[sortedSquares.length - 1].col : null;
+          
+          // Update trim positions in SampleManager
+          state.sampleManager.setTrimPositions(sampleName, startCol, endCol);
+          
+          // Draw trim lines
+          push();
+          stroke(255, 0, 0);
+          strokeWeight(2);
+          
+          // Start line
+          const startX = this.grid.offsetX + (startCol * this.grid.cellSize);
+          line(startX, this.grid.offsetY, startX, this.grid.offsetY + ((this.grid.numRows - 1) * this.grid.cellSize));
+          
+          // End line (if exists)
+          if (endCol !== null) {
+            const endX = this.grid.offsetX + (endCol * this.grid.cellSize);
+            line(endX, this.grid.offsetY, endX, this.grid.offsetY + ((this.grid.numRows - 1) * this.grid.cellSize));
+          }
+          pop();
+        } else {
+          // No trim markers, clear trim positions
+          state.sampleManager.clearTrimPositions(sampleName);
+        }
+      }
     }
 
-    // 2. Draw the grid on top of waveform
+    // Draw grid on top of waveform
     this.grid.draw();
 
-    // 3. Draw other mode squares with reduced opacity
+    // Only draw trim squares for current sample
     state.staticSquares
-      .filter(square => square.mode !== MODES.TRIM)
-      .forEach(square => square.draw(this.currentMode));
-
-    // 4. Draw trim mode squares last (on top)
-    state.staticSquares
-      .filter(square => square.mode === MODES.TRIM)
+      .filter(square => {
+        if (square.mode !== MODES.TRIM) return false;
+        if (!this.selectedSampleKey) return false;
+        return square.key === 't' && square.sampleKey === this.selectedSampleKey;
+      })
       .forEach(square => square.draw(this.currentMode));
   }
 
