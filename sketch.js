@@ -118,19 +118,200 @@ class Grid {
   }
 }
 
+class Connection {
+  constructor(sourceSquare, targetSquare, vertices = []) {
+    this.sourceSquare = sourceSquare;
+    this.targetSquare = targetSquare;
+    this.vertices = vertices;
+    this.path = this.calculatePath();
+  }
+  
+  calculatePath() {
+    const points = [];
+    let currentPoint = {
+      x: this.sourceSquare.col,
+      y: this.sourceSquare.row
+    };
+    
+    // Add path through each vertex
+    const allPoints = [...this.vertices, {
+      x: this.targetSquare.col,
+      y: this.targetSquare.row
+    }];
+    
+    for (const nextPoint of allPoints) {
+      // Get path from current point to next point
+      const segmentPoints = getGridPath(
+        currentPoint.x, currentPoint.y,
+        nextPoint.x, nextPoint.y
+      );
+      
+      // Add all points except the last (to avoid duplicates)
+      points.push(...segmentPoints.slice(0, -1));
+      currentPoint = nextPoint;
+    }
+    
+    // Add the final point
+    points.push({
+      x: this.targetSquare.col,
+      y: this.targetSquare.row
+    });
+    
+    return points;
+  }
+  
+  draw(grid) {
+    push(); // Save current drawing state
+    stroke(255, 0, 0);
+    strokeWeight(2);
+    noFill();
+    
+    // Draw the path
+    beginShape();
+    this.path.forEach(p => {
+      const pos = grid.getPointPosition(p.x, p.y);
+      vertex(pos.x, pos.y);
+    });
+    endShape();
+    
+    // Draw an arrow at the end to show direction
+    const lastPoint = this.path[this.path.length - 1];
+    const secondLastPoint = this.path[this.path.length - 2];
+    const lastPos = grid.getPointPosition(lastPoint.x, lastPoint.y);
+    const angle = atan2(
+      lastPoint.y - secondLastPoint.y,
+      lastPoint.x - secondLastPoint.x
+    );
+    
+    translate(lastPos.x, lastPos.y);
+    rotate(angle);
+    fill(255, 0, 0);
+    noStroke();
+    triangle(-8, -4, -8, 4, 0, 0);
+    pop(); // Restore previous drawing state
+  }
+  
+  containsPoint(col, row) {
+    return this.path.some(p => p.x === col && p.y === row);
+  }
+  
+  // Check if this connection connects the same squares (in either direction)
+  matches(square1, square2) {
+    return (
+      (this.sourceSquare === square1 && this.targetSquare === square2) ||
+      (this.sourceSquare === square2 && this.targetSquare === square1)
+    );
+  }
+}
+
 let grid;
 let cursor;
 let staticSquares = [];
+let connections = [];
 const ACCEPTED_KEYS = ['a', 's', 'd', 'f', 'e', 'g'];
 let lastMoveTime = 0;
 const MOVE_DELAY = 150; // Milliseconds between moves
 let connectMode = false;
 let connectSourceSquare = null;
+let connectVertices = []; // Store vertices during connection creation
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   grid = new Grid(GRID_SPACING, GRID_PADDING);
   cursor = new Cursor(grid);
+}
+
+// Helper function to check if two line segments overlap
+function doSegmentsOverlap(a1, a2, b1, b2) {
+  // If segments share an endpoint, they don't count as overlapping
+  if ((a1.x === b1.x && a1.y === b1.y) || 
+      (a1.x === b2.x && a1.y === b2.y) ||
+      (a2.x === b1.x && a2.y === b1.y) ||
+      (a2.x === b2.x && a2.y === b2.y)) {
+    return false;
+  }
+  
+  // Check if segments are on the same line (horizontal or vertical)
+  const isHorizontal = a1.y === a2.y && b1.y === b2.y && a1.y === b1.y;
+  const isVertical = a1.x === a2.x && b1.x === b2.x && a1.x === b1.x;
+  
+  if (isHorizontal) {
+    // Sort x coordinates
+    const [aMin, aMax] = [a1.x, a2.x].sort((a, b) => a - b);
+    const [bMin, bMax] = [b1.x, b2.x].sort((a, b) => a - b);
+    return !(aMax <= bMin || bMax <= aMin);
+  }
+  
+  if (isVertical) {
+    // Sort y coordinates
+    const [aMin, aMax] = [a1.y, a2.y].sort((a, b) => a - b);
+    const [bMin, bMax] = [b1.y, b2.y].sort((a, b) => a - b);
+    return !(aMax <= bMin || bMax <= aMin);
+  }
+  
+  return false;
+}
+
+// Check if a path has overlaps with itself or existing connections
+function hasPathOverlap(points, ignoreExisting = false) {
+  // Check self-overlaps first
+  for (let i = 0; i < points.length - 1; i++) {
+    const seg1Start = points[i];
+    const seg1End = points[i + 1];
+    
+    // Check against later segments in the same path
+    for (let j = i + 2; j < points.length - 1; j++) {
+      const seg2Start = points[j];
+      const seg2End = points[j + 1];
+      
+      if (doSegmentsOverlap(seg1Start, seg1End, seg2Start, seg2End)) {
+        return true;
+      }
+    }
+    
+    // Check against existing connections if not ignored
+    if (!ignoreExisting) {
+      for (const conn of connections) {
+        for (let j = 0; j < conn.path.length - 1; j++) {
+          const seg2Start = conn.path[j];
+          const seg2End = conn.path[j + 1];
+          
+          if (doSegmentsOverlap(seg1Start, seg1End, seg2Start, seg2End)) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// Get preview path points
+function getPreviewPathPoints() {
+  const points = [];
+  let currentPoint = {
+    x: connectSourceSquare.col,
+    y: connectSourceSquare.row
+  };
+  
+  // Add path through each vertex
+  for (const vertex of connectVertices) {
+    const segmentPoints = getGridPath(
+      currentPoint.x, currentPoint.y,
+      vertex.x, vertex.y
+    );
+    points.push(...segmentPoints.slice(0, -1));
+    currentPoint = vertex;
+  }
+  
+  // Add path to cursor
+  const toTarget = getGridPath(
+    currentPoint.x, currentPoint.y,
+    cursor.col, cursor.row
+  );
+  points.push(...toTarget);
+  
+  return points;
 }
 
 function draw() {
@@ -157,36 +338,37 @@ function draw() {
   }
   
   grid.draw();
-  // Draw all static squares
+  connections.forEach(conn => conn.draw(grid));
   staticSquares.forEach(square => square.draw());
-  cursor.draw();
   
   // Draw connection preview if in connect mode
   if (connectMode && connectSourceSquare) {
-    const sourcePos = grid.getPointPosition(connectSourceSquare.col, connectSourceSquare.row);
-    const cursorPos = grid.getPointPosition(cursor.col, cursor.row);
+    const previewPoints = getPreviewPathPoints();
     
-    // Get path points
-    const points = getGridPath(
-      connectSourceSquare.col, connectSourceSquare.row,
-      cursor.col, cursor.row
-    );
-    
-    // Draw path
-    stroke(255, 0, 0);
+    // Draw preview path
+    stroke(hasPathOverlap(previewPoints) ? color(255, 0, 0, 64) : color(255, 0, 0, 128));
     strokeWeight(2);
     noFill();
     beginShape();
-    points.forEach(p => {
+    previewPoints.forEach(p => {
       const pos = grid.getPointPosition(p.x, p.y);
       vertex(pos.x, pos.y);
     });
     endShape();
+    
+    // Draw vertices
+    stroke(255, 0, 0);
+    fill(255, 0, 0);
+    connectVertices.forEach(v => {
+      const pos = grid.getPointPosition(v.x, v.y);
+      circle(pos.x, pos.y, 8);
+    });
   }
+  
+  cursor.draw();
 }
 
 function keyPressed() {
-  // Handle connection mode
   if (key === 'c') {
     const squareAtCursor = getSquareAt(cursor.col, cursor.row);
     
@@ -194,15 +376,75 @@ function keyPressed() {
       // Start connection
       connectMode = true;
       connectSourceSquare = squareAtCursor;
+      connectVertices = []; // Clear vertices
       console.log('Connection started from:', connectSourceSquare.key);
     } else if (connectMode) {
       // Complete connection only if there's a valid target square
       if (squareAtCursor && squareAtCursor !== connectSourceSquare) {
-        console.log('Connected:', connectSourceSquare.key, 'to', squareAtCursor.key);
+        const previewPoints = getPreviewPathPoints();
+        
+        if (!hasPathOverlap(previewPoints)) {
+          const isDuplicate = connections.some(conn => 
+            conn.matches(connectSourceSquare, squareAtCursor)
+          );
+          
+          if (!isDuplicate) {
+            console.log('Connected:', connectSourceSquare.key, 'to', squareAtCursor.key);
+            connections.push(new Connection(connectSourceSquare, squareAtCursor, [...connectVertices]));
+          } else {
+            console.log('Connection already exists between these squares');
+          }
+        } else {
+          console.log('Cannot create connection with overlapping segments');
+        }
       }
-      // Reset connection mode regardless
+      // Reset connection mode
       connectMode = false;
       connectSourceSquare = null;
+      connectVertices = [];
+    }
+    return;
+  }
+  
+  if (key === 'p' && connectMode) {
+    const col = cursor.col;
+    const row = cursor.row;
+    
+    // Don't allow vertices on squares
+    if (getSquareAt(col, row)) return;
+    
+    // Check if there's already a vertex at this position
+    const existingVertexIndex = connectVertices.findIndex(v => 
+      v.x === col && v.y === row
+    );
+    
+    if (existingVertexIndex !== -1) {
+      // Remove the vertex if it exists
+      connectVertices.splice(existingVertexIndex, 1);
+    } else {
+      // Test if adding this vertex would create overlaps
+      const testVertices = [...connectVertices, {x: col, y: row}];
+      let currentPoint = {
+        x: connectSourceSquare.col,
+        y: connectSourceSquare.row
+      };
+      
+      const testPoints = [];
+      for (const vertex of testVertices) {
+        const segmentPoints = getGridPath(
+          currentPoint.x, currentPoint.y,
+          vertex.x, vertex.y
+        );
+        testPoints.push(...segmentPoints.slice(0, -1));
+        currentPoint = vertex;
+      }
+      
+      if (!hasPathOverlap(testPoints)) {
+        // Add new vertex if no overlaps
+        connectVertices.push({x: col, y: row});
+      } else {
+        console.log('Cannot add vertex - would create overlapping segments');
+      }
     }
     return;
   }
@@ -217,13 +459,21 @@ function keyPressed() {
   
   // Handle deletion with 'x' key
   if (key === 'x') {
-    // Find and remove any square at cursor position
+    const col = cursor.col;
+    const row = cursor.row;
+    
+    // Remove any connections at cursor position
+    connections = connections.filter(conn => !conn.containsPoint(col, row));
+    
+    // Remove any squares at cursor position
     staticSquares = staticSquares.filter(square => 
-      !(square.col === cursor.col && square.row === cursor.row)
+      !(square.col === col && square.row === row)
     );
+    
     // Reset connection mode if active
     connectMode = false;
     connectSourceSquare = null;
+    connectVertices = [];
   }
 }
 
