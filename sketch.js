@@ -165,9 +165,23 @@ function draw() {
   if (connectMode && connectSourceSquare) {
     const sourcePos = grid.getPointPosition(connectSourceSquare.col, connectSourceSquare.row);
     const cursorPos = grid.getPointPosition(cursor.col, cursor.row);
+    
+    // Get path points
+    const points = getGridPath(
+      connectSourceSquare.col, connectSourceSquare.row,
+      cursor.col, cursor.row
+    );
+    
+    // Draw path
     stroke(255, 0, 0);
     strokeWeight(2);
-    line(sourcePos.x, sourcePos.y, cursorPos.x, cursorPos.y);
+    noFill();
+    beginShape();
+    points.forEach(p => {
+      const pos = grid.getPointPosition(p.x, p.y);
+      vertex(pos.x, pos.y);
+    });
+    endShape();
   }
 }
 
@@ -176,21 +190,19 @@ function keyPressed() {
   if (key === 'c') {
     const squareAtCursor = getSquareAt(cursor.col, cursor.row);
     
-    if (squareAtCursor) {
-      if (!connectMode) {
-        // Start connection
-        connectMode = true;
-        connectSourceSquare = squareAtCursor;
-        console.log('Connection started from:', connectSourceSquare.key);
-      } else {
-        // Complete connection
-        if (squareAtCursor !== connectSourceSquare) {
-          console.log('Connected:', connectSourceSquare.key, 'to', squareAtCursor.key);
-        }
-        // Reset connection mode
-        connectMode = false;
-        connectSourceSquare = null;
+    if (!connectMode && squareAtCursor) {
+      // Start connection
+      connectMode = true;
+      connectSourceSquare = squareAtCursor;
+      console.log('Connection started from:', connectSourceSquare.key);
+    } else if (connectMode) {
+      // Complete connection only if there's a valid target square
+      if (squareAtCursor && squareAtCursor !== connectSourceSquare) {
+        console.log('Connected:', connectSourceSquare.key, 'to', squareAtCursor.key);
       }
+      // Reset connection mode regardless
+      connectMode = false;
+      connectSourceSquare = null;
     }
     return;
   }
@@ -225,6 +237,26 @@ function getSquareAt(col, row) {
   return staticSquares.find(square => 
     square.col === col && square.row === row
   );
+}
+
+function getGridPath(startX, startY, endX, endY) {
+  const points = [];
+  points.push({x: startX, y: startY});
+  
+  // First move horizontally
+  const currentX = startX;
+  while (points[points.length-1].x !== endX) {
+    const nextX = points[points.length-1].x + Math.sign(endX - currentX);
+    points.push({x: nextX, y: startY});
+  }
+  
+  // Then move vertically
+  while (points[points.length-1].y !== endY) {
+    const nextY = points[points.length-1].y + Math.sign(endY - startY);
+    points.push({x: endX, y: nextY});
+  }
+  
+  return points;
 }
 
 // Add this to handle window resizing
