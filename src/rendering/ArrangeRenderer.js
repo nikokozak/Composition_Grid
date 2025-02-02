@@ -15,10 +15,15 @@ export class ArrangeRenderer extends BaseRenderer {
       .filter(square => square.mode === MODES.ARRANGE)
       .forEach(square => square.draw(MODES.ARRANGE));
 
-    // Draw timing bar if playing
-    if (state.modeManager.isPlaying) {
+    // Draw timing bar if transport is running
+    if (state.timeManager.transport.state === 'started') {
       this.drawTimingBar(grid);
     }
+
+    // Draw other mode squares with reduced opacity
+    state.staticSquares
+      .filter(square => square.mode !== MODES.ARRANGE)
+      .forEach(square => square.draw(MODES.ARRANGE));
 
     // Draw connections
     state.connections.forEach(conn => conn.draw(grid));
@@ -34,8 +39,8 @@ export class ArrangeRenderer extends BaseRenderer {
   //=============================================================================
 
   drawTimingBar(grid) {
-    const beatIndex = Math.floor(state.modeManager.currentBeat);
-    const x = grid.offsetX + (beatIndex * grid.cellSize);
+    const col = state.timeManager.getCurrentColumn();
+    const x = grid.offsetX + (col * grid.cellSize);
     
     push();
     stroke(255, 0, 0);
@@ -47,7 +52,7 @@ export class ArrangeRenderer extends BaseRenderer {
     textSize(12);
     fill(255, 0, 0);
     noStroke();
-    text(`Beat: ${beatIndex + 1}`, x, grid.offsetY - 20);
+    text(`Beat: ${col + 1}`, x, grid.offsetY - 20);
     pop();
   }
 

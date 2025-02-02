@@ -7,7 +7,11 @@ export const state = {
   lastMoveTime: 0,
   connectMode: false,
   connectSourceSquare: null,
-  connectVertices: []
+  connectVertices: [],
+  sampleManager: null,
+  modeManager: null,
+  timeManager: null,
+  uiManager: null
 };
 
 // Helper functions

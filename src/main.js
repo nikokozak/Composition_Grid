@@ -9,21 +9,27 @@ import { hasPathOverlap } from './utils/overlap.js';
 import { SampleManager } from './audio/SampleManager.js';
 import { ModeManager, MODES } from './modes/ModeManager.js';
 import { UIManager } from './ui/UIManager.js';
+import { TimeManager } from './audio/TimeManager.js';
 
 //=============================================================================
 // SETUP AND MAIN LOOP
 //=============================================================================
 
 async function setup() {
+  console.log('Setting up...');
   createCanvas(windowWidth, windowHeight);
   state.grid = new Grid();
   state.cursor = new Cursor(state.grid);
   state.sampleManager = new SampleManager();
+  state.timeManager = new TimeManager();
   state.modeManager = new ModeManager();
   state.uiManager = new UIManager();
+  console.log('Managers initialized');
   await state.sampleManager.loadSamples();
+  console.log('Samples loaded');
   
   setupGridControls();
+  console.log('Setup complete');
 }
 
 function setupGridControls() {
@@ -51,10 +57,10 @@ function draw() {
   state.modeManager.update(deltaTime);
   state.lastFrameTime = millis();
   
-  // Draw scene
+  // Draw scene in order: grid -> mode content -> UI -> cursor
   state.grid.draw();
   state.modeManager.draw(state.grid);
-  state.uiManager.draw();
+  state.uiManager.draw();  // This should draw the sample names
   state.cursor.draw();
 }
 
@@ -79,86 +85,6 @@ function handleCursorMovement() {
       break;
     }
   }
-}
-
-//=============================================================================
-// DRAWING FUNCTIONS
-//=============================================================================
-
-function drawScene() {
-  // Only draw grid in arrange mode (trim mode handles its own grid drawing)
-  if (state.modeManager.currentMode === MODES.ARRANGE) {
-    state.grid.draw();
-  }
-  
-  // Draw connections
-  state.connections.forEach(conn => conn.draw(state.grid));
-  
-  if (state.connectMode && state.connectSourceSquare) {
-    drawConnectionPreview();
-  }
-  
-  drawSampleNames();
-  state.modeManager.draw(state.grid);
-  
-  // Draw cursor last so it's always on top
-  state.cursor.draw();
-}
-
-function drawConnectionPreview() {
-  const previewPoints = getPreviewPathPoints(
-    state.connectSourceSquare,
-    state.connectVertices,
-    state.cursor
-  );
-  
-  drawPreviewPath(previewPoints);
-  drawPreviewVertices();
-}
-
-function drawPreviewPath(previewPoints) {
-  const hasOverlap = hasPathOverlap(previewPoints, state.connections);
-  stroke(hasOverlap ? color(255, 0, 0, 64) : color(255, 0, 0, 128));
-  strokeWeight(2);
-  noFill();
-  
-  beginShape();
-  previewPoints.forEach(p => {
-    const pos = state.grid.getPointPosition(p.x, p.y);
-    vertex(pos.x, pos.y);
-  });
-  endShape();
-}
-
-function drawPreviewVertices() {
-  stroke(255, 0, 0);
-  fill(255, 0, 0);
-  state.connectVertices.forEach(v => {
-    const pos = state.grid.getPointPosition(v.x, v.y);
-    circle(pos.x, pos.y, 8);
-  });
-}
-
-function drawSampleNames() {
-  const sampleNames = state.sampleManager.getSampleNames();
-  const keyMappings = state.sampleManager.getKeyMappings();
-  const spacing = width / (sampleNames.length + 1);
-  
-  textAlign(CENTER, CENTER);
-  textSize(14);
-  fill(0);
-  noStroke();
-  
-  sampleNames.forEach((name, i) => {
-    const x = spacing * (i + 1);
-    const y = 30;
-    
-    // Find the key for this sample
-    const key = Object.entries(keyMappings).find(([k, n]) => n === name)?.[0];
-    const displayText = key ? `${name} [${key}]` : name;
-    
-    text(displayText, x, y);
-  });
 }
 
 //=============================================================================
@@ -385,7 +311,11 @@ function windowResized() {
 // P5.JS GLOBAL BINDINGS
 //=============================================================================
 
+// Bind all p5.js functions to window object
 window.setup = setup;
 window.draw = draw;
 window.keyPressed = keyPressed;
-window.windowResized = windowResized; 
+window.windowResized = windowResized;
+
+// Export for module system
+export { setup, draw, keyPressed, windowResized }; 
