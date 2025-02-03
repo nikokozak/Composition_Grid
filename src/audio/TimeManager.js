@@ -5,11 +5,17 @@ export class TimeManager {
     this.transport = Tone.getTransport();
     this.transport.bpm.value = 120;
     this.transport.timeSignature = 1; // Default to quarter notes
+    this.lastTriggeredColumn = -1;
     
-    // Schedule column triggers
+    // Schedule column triggers with lookahead
     this.transport.scheduleRepeat(time => {
-      this.triggerCurrentColumn(time);
-    }, "16n");
+      const currentColumn = this.getCurrentColumn();
+      // Only trigger if column has changed
+      if (currentColumn !== this.lastTriggeredColumn) {
+        this.triggerCurrentColumn(time);
+        this.lastTriggeredColumn = currentColumn;
+      }
+    }, "32n"); // Increased resolution for more precise timing
   }
 
   start() {
@@ -44,12 +50,19 @@ export class TimeManager {
 
   triggerCurrentColumn(time) {
     const col = this.getCurrentColumn();
-    // Trigger all samples in this column
-    state.staticSquares
-      .filter(square => square.col === col && square.mode === 'arrange')
-      .forEach(square => {
+    // Cache filtered squares to avoid repeated filtering
+    const activeSquares = state.staticSquares.filter(square => 
+      square.col === col && 
+      square.mode === 'arrange' && 
+      state.sampleManager.players.get(square.key)?.loaded
+    );
+    
+    // Batch trigger all samples
+    if (activeSquares.length > 0) {
+      activeSquares.forEach(square => {
         state.sampleManager.playSampleAtTime(square.key, time);
       });
+    }
   }
 
   getCurrentColumn() {

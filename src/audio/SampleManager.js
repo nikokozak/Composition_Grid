@@ -9,6 +9,13 @@ export class SampleManager {
     this.trimPositions = new Map(); // Maps sample names to {start, end} grid positions
     this.volumes = new Map(); // Maps keys to volume values in dB
     this.pitchShifts = new Map(); // Now maps "key:column" to semitones
+    
+    // Create a shared gain node for all players
+    this.mainGainNode = new Tone.Gain().toDestination();
+    
+    // Cache for computed values
+    this.rateCache = new Map(); // Cache for pitch shift calculations
+    this.trimCache = new Map(); // Cache for trim calculations
   }
 
   async loadSamples() {
@@ -29,14 +36,19 @@ export class SampleManager {
 
   async loadSample(key, name, url) {
     try {
+      // Create player with optimized settings
       const player = new Tone.Player({
         url,
         onload: () => console.log(`Tone.Player loaded: ${name}`),
-      }).toDestination();
+        fadeOut: 0.01, // Quick fade to prevent clicks
+        fadeIn: 0.01,
+        curve: 'linear' // Less CPU intensive than exponential
+      }).connect(this.mainGainNode);
 
       while (!player.loaded) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      
       this.players.set(key, player);
       this.sampleNames.set(key, name);
       this.keyMap.set(key, name);
@@ -49,20 +61,34 @@ export class SampleManager {
     const player = this.players.get(key);
     if (!player) return;
 
-    // Get the current column from TimeManager
     const currentColumn = state.timeManager.getCurrentColumn();
     
-    // Apply pitch shift if it exists for this key and column
-    const pitchShift = this.getPitchShift(key, currentColumn);
-    const rate = Math.pow(2, pitchShift/12);
+    // Use cached pitch rate if available
+    const cacheKey = `${key}:${currentColumn}`;
+    let rate = this.rateCache.get(cacheKey);
+    if (rate === undefined) {
+      const pitchShift = this.getPitchShift(key, currentColumn);
+      rate = Math.pow(2, pitchShift/12);
+      this.rateCache.set(cacheKey, rate);
+    }
     player.playbackRate = rate;
 
-    // Apply trim positions if they exist
-    const trimPos = this.trimPositions.get(this.getSampleForKey(key));
-    if (trimPos) {
-      const startTime = this.getTimeFromColumn(trimPos.start);
-      const endTime = trimPos.end ? this.getTimeFromColumn(trimPos.end) : player.buffer.duration;
-      player.start(time, startTime, endTime - startTime);
+    // Use cached trim positions
+    const trimKey = this.getSampleForKey(key);
+    let trimData = this.trimCache.get(trimKey);
+    if (!trimData) {
+      const trimPos = this.trimPositions.get(trimKey);
+      if (trimPos) {
+        trimData = {
+          startTime: this.getTimeFromColumn(trimPos.start),
+          endTime: trimPos.end ? this.getTimeFromColumn(trimPos.end) : player.buffer.duration
+        };
+        this.trimCache.set(trimKey, trimData);
+      }
+    }
+
+    if (trimData) {
+      player.start(time, trimData.startTime, trimData.endTime - trimData.startTime);
     } else {
       player.start(time);
     }
@@ -90,6 +116,7 @@ export class SampleManager {
 
   setTrimPositions(sampleName, startCol, endCol) {
     this.trimPositions.set(sampleName, { start: startCol, end: endCol });
+    this.trimCache.delete(sampleName);
   }
 
   clearTrimPositions(sampleName) {
@@ -134,6 +161,7 @@ export class SampleManager {
   setPitchShift(key, semitones, column) {
     const pitchKey = `${key}:${column}`;
     this.pitchShifts.set(pitchKey, semitones);
+    this.rateCache.delete(pitchKey);
   }
 
   getPitchShift(key, column) {
