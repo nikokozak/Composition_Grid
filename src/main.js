@@ -2,7 +2,7 @@ import { Grid } from './core/Grid.js';
 import { Cursor } from './objects/Cursor.js';
 import { StaticSquare } from './objects/StaticSquare.js';
 import { Connection } from './objects/Connection.js';
-import { ACCEPTED_KEYS, MOVE_DELAY } from './constants.js';
+import { ACCEPTED_KEYS, MOVE_DELAY, INITIAL_MOVE_DELAY, REPEAT_MOVE_DELAY } from './constants.js';
 import { state, getSquareAt, isPositionOccupied } from './state/store.js';
 import { getPreviewPathPoints } from './utils/pathfinding.js';
 import { hasPathOverlap } from './utils/overlap.js';
@@ -69,8 +69,6 @@ function draw() {
 //=============================================================================
 
 function handleCursorMovement() {
-  if (millis() - state.lastMoveTime <= MOVE_DELAY) return;
-  
   const movements = {
     [LEFT_ARROW]: [-1, 0],
     [RIGHT_ARROW]: [1, 0],
@@ -78,11 +76,31 @@ function handleCursorMovement() {
     [DOWN_ARROW]: [0, 1]
   };
   
+  const currentTime = millis();
+  
   for (const [key, [dx, dy]] of Object.entries(movements)) {
     if (keyIsDown(key)) {
-      state.cursor.move(dx, dy);
-      state.lastMoveTime = millis();
-      break;
+      // If key was just pressed, move immediately and set initial press time
+      if (!state.lastKeyPressTime[key]) {
+        state.cursor.move(dx, dy);
+        state.lastKeyPressTime[key] = currentTime;
+        state.lastMoveTime[key] = currentTime;
+        return;
+      }
+      
+      const timeSinceFirstPress = currentTime - state.lastKeyPressTime[key];
+      const timeSinceLastMove = currentTime - (state.lastMoveTime[key] || 0);
+      
+      // After initial delay, allow repeated moves at faster interval
+      if (timeSinceFirstPress > INITIAL_MOVE_DELAY && 
+          timeSinceLastMove > REPEAT_MOVE_DELAY) {
+        state.cursor.move(dx, dy);
+        state.lastMoveTime[key] = currentTime;
+      }
+    } else {
+      // Reset when key is released
+      state.lastKeyPressTime[key] = null;
+      state.lastMoveTime[key] = null;
     }
   }
 }

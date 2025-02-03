@@ -4,7 +4,8 @@ export const state = {
   cursor: null,
   staticSquares: [],
   connections: [],
-  lastMoveTime: 0,
+  lastMoveTime: {},      // Tracks last move time per key
+  lastKeyPressTime: {},  // Tracks initial press time per key
   connectMode: false,
   connectSourceSquare: null,
   connectVertices: [],
