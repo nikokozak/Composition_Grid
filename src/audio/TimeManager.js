@@ -33,18 +33,23 @@ export class TimeManager {
   }
 
   setTimeSignature(value) {
-    // Convert our simple value to actual time signature
-    const signatures = {
-      0.25: [1, 16], // 16th notes
-      0.5: [1, 8],   // 8th notes
-      1: [1, 4],     // quarter notes
-      2: [1, 2]      // half notes
-    };
-    
-    if (signatures[value]) {
-      const [numerator, denominator] = signatures[value];
-      this.transport.timeSignature = value;
-      this.transport.setTimeSignature(numerator, denominator);
+    // Store our simple value for UI/reference
+    this.transport.timeSignature = value;
+
+    // Convert to actual time signature and update timing
+    switch(value) {
+      case 0.25: // 16th notes
+        this.transport.PPQ = this.transport.PPQ * 4;
+        break;
+      case 0.5: // 8th notes
+        this.transport.PPQ = this.transport.PPQ * 2;
+        break;
+      case 1: // quarter notes (default)
+        this.transport.PPQ = 192; // Tone.js default PPQ
+        break;
+      case 2: // half notes
+        this.transport.PPQ = this.transport.PPQ / 2;
+        break;
     }
   }
 
@@ -54,7 +59,14 @@ export class TimeManager {
     const activeSquares = state.staticSquares.filter(square => 
       square.col === col && 
       square.mode === 'arrange' && 
-      state.sampleManager.players.get(square.key)?.loaded
+      state.sampleManager.players.get(square.key)?.loaded &&
+      // Make sure the square still exists in arrange mode at this position
+      state.staticSquares.some(s => 
+        s.col === square.col && 
+        s.row === square.row && 
+        s.key === square.key && 
+        s.mode === 'arrange'
+      )
     );
     
     // Batch trigger all samples
@@ -66,9 +78,10 @@ export class TimeManager {
   }
 
   getCurrentColumn() {
-    // Convert transport position to grid column
-    // 4 = number of 16th notes per beat
-    return Math.floor(this.transport.ticks / this.transport.PPQ * 4) % state.grid.numCols;
+    // Convert transport position to grid column based on current time signature
+    const timeSignature = this.transport.timeSignature;
+    const multiplier = 4 / timeSignature; // Adjust for time signature
+    return Math.floor(this.transport.ticks / this.transport.PPQ * multiplier) % state.grid.numCols;
   }
 
   // Helper method to convert grid position to time

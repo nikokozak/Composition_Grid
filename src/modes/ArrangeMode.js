@@ -87,6 +87,24 @@ export class ArrangeMode extends BaseMode {
     
     if (!squareAtPosition || squareAtPosition.mode !== this.name) return false;
 
+    // Clean up associated effects before deleting the square
+    const key = squareAtPosition.key;
+    
+    // Clean up pitch shifts
+    state.sampleManager.clearPitchShift(key, col);
+    
+    // Clean up volume settings
+    state.sampleManager.setVolume(key, 0); // Reset to default volume
+    
+    // Clean up trim positions
+    state.sampleManager.clearTrimPositions(state.sampleManager.getSampleForKey(key));
+
+    // Remove associated effect squares
+    state.staticSquares = state.staticSquares.filter(square => 
+      !(square.col === col && (square.mode === MODES.PITCH || square.mode === MODES.VOLUME) && square.key === key)
+    );
+
+    // Remove the arrange square itself
     state.staticSquares = state.staticSquares.filter(square => 
       !(square.col === col && square.row === row && square.mode === this.name)
     );
