@@ -24,7 +24,9 @@ export class SampleManager {
       { key: 's', name: 'Synth-AuroraBoreal', url: 'samples/Synth-AuroraBoreal.wav' },
       { key: 'd', name: 'Synth-AfterHours', url: 'samples/Synth-AfterHours.wav' },
       { key: 'f', name: 'Synth-BlocySquare3', url: 'samples/Synth-BlocySquare3.wav' },
-      { key: 'g', name: 'Basedrum-Eightsnap', url: 'samples/Basedrum-Eightsnap.wav' }
+      { key: 'g', name: 'Basedrum-Eightsnap', url: 'samples/Basedrum-Eightsnap.wav' },
+      { key: 'h', name: '163_FTS', url: 'samples/163_FTS.wav' },
+      { key: 'j', name: '162_FTS', url: 'samples/162_FTS.wav' },
     ];
 
     await Promise.all(
